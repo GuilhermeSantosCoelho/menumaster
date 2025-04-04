@@ -1,0 +1,247 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum TableStatus {
+  FREE
+  OCCUPIED
+  RESERVED
+  MAINTENANCE
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum SubscriptionPlan {
+  BASIC
+  PROFESSIONAL
+  PREMIUM
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  PIX
+  CASH
+  BANK_TRANSFER
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+// Modelos
+model User {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  password       String
+  phone          String?
+  role           UserRole        @default(OWNER)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  establishments Establishment[]
+  staffAt        Establishment[] @relation("EstablishmentStaff")
+  notifications  Notification[]
+}
+
+model Establishment {
+  id             String           @id @default(uuid())
+  name           String
+  description    String?
+  address        String?
+  phone          String?
+  logo           String?
+  primaryColor   String?
+  secondaryColor String?
+  active         Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  ownerId        String
+  owner          User             @relation(fields: [ownerId], references: [id])
+  staff          User[]           @relation("EstablishmentStaff")
+  products       Product[]
+  categories     Category[]
+  tables         Table[]
+  orders         Order[]
+  subscription   Subscription?
+  qrCodeSettings QRCodeSettings?
+  salesReports   SalesReport[]
+}
+
+model Category {
+  id              String        @id @default(uuid())
+  name            String
+  description     String?
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+  products        Product[]
+}
+
+model Product {
+  id              String        @id @default(uuid())
+  name            String
+  description     String?
+  price           Float
+  image           String?
+  stock           Int?
+  available       Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+  categoryId      String?
+  category        Category?     @relation(fields: [categoryId], references: [id])
+  orderItems      OrderItem[]
+}
+
+model Table {
+  id              String        @id @default(uuid())
+  number          Int
+  capacity        Int
+  status          TableStatus   @default(FREE)
+  qrCodeUrl       String?
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+  orders          Order[]
+}
+
+model Order {
+  id              String        @id @default(uuid())
+  status          OrderStatus   @default(PENDING)
+  totalAmount     Float
+  notes           String?
+  customerName    String?
+  customerPhone   String?
+  paymentMethod   PaymentMethod?
+  paymentStatus   String        @default("PENDING")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  completedAt     DateTime?
+  tableId         String
+  table           Table         @relation(fields: [tableId], references: [id])
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+  items           OrderItem[]
+  billSplit       BillSplit?
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  quantity   Int
+  unitPrice  Float
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+}
+
+model Subscription {
+  id              String          @id @default(uuid())
+  plan            SubscriptionPlan
+  startDate       DateTime
+  endDate         DateTime?
+  active          Boolean         @default(true)
+  autoRenew       Boolean         @default(true)
+  paymentMethod   PaymentMethod
+  paymentDetails  String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  establishmentId String          @unique
+  establishment   Establishment   @relation(fields: [establishmentId], references: [id])
+  invoices        Invoice[]
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  amount         Float
+  status         InvoiceStatus @default(PENDING)
+  dueDate        DateTime
+  paidAt         DateTime?
+  paymentMethod  PaymentMethod?
+  paymentId      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  subscriptionId String
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
+}
+
+model QRCodeSettings {
+  id              String        @id @default(uuid())
+  primaryColor    String?
+  backgroundColor String?
+  logoUrl         String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  establishmentId String        @unique
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+}
+
+model SalesReport {
+  id              String        @id @default(uuid())
+  startDate       DateTime
+  endDate         DateTime
+  totalSales      Float
+  totalOrders     Int
+  averageTicket   Float
+  topProducts     Json
+  salesByDay      Json
+  createdAt       DateTime      @default(now())
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  type      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model BillSplit {
+  id              String   @id @default(uuid())
+  numberOfPeople  Int
+  amountPerPerson Float
+  status          String   @default("PENDING")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  orderId         String   @unique
+  order           Order    @relation(fields: [orderId], references: [id])
+}
+
