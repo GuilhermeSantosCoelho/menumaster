@@ -24,9 +24,7 @@ export default function LandingPage() {
           </nav>
           <div className="flex items-center gap-3">
             <Link href="/login">
-              <Button variant="ghost" className="hidden md:flex">
-                Entrar
-              </Button>
+              <Button variant="ghost">Entrar</Button>
             </Link>
             <Link href="/register">
               <Button>Cadastre-se</Button>

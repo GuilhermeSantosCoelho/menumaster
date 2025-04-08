@@ -11,7 +11,7 @@ import { createClient } from '@/utils/supabase/client';
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   // signUp: (
   //   email: string,
   //   password: string,
@@ -32,10 +32,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   const signIn = async (email: string, password: string) => {
-    setLoading(true);
-    const response = await login({ email, password });
-    setLoading(false);
-    return response;
+    try {
+      setLoading(true);
+      const response = await login({ email, password });
+      setLoading(false);
+      return response;
+    } catch (error) {
+      setLoading(false);
+      throw error;
+    }
   };
 
   // const signUp = async (email: string, password: string, name: string) => {

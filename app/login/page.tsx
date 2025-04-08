@@ -51,9 +51,13 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      await signIn(values.email, values.password);
-      toast.success('Login realizado com sucesso!');
-      router.push(redirectTo);
+      const response = await signIn(values.email, values.password);
+      if (response.success) {
+        toast.success(response.message);
+        router.push(redirectTo);
+      } else {
+        toast.error(response.message);
+      }
     } catch (error) {
       console.error(error);
       toast.error('Ocorreu um erro ao fazer login.');
