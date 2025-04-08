@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { QRCodeSVG } from "qrcode.react"
 import * as QRCode from "qrcode"
@@ -34,10 +34,9 @@ export default function QRCodesPage() {
   const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
-
+  const supabase = createClient();
   useEffect(() => {
     const fetchUserAndTables = async () => {
-      const supabase = getSupabaseBrowserClient()
       const { data: { user } } = await supabase.auth.getUser()
       
       if (user) {

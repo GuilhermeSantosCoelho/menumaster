@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Download, Edit, MoreHorizontal, Plus, QrCode, Trash } from "lucide-react"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { QRCodeSVG } from "qrcode.react"
 
@@ -76,6 +76,7 @@ export default function TablesPage() {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const supabase = createClient();
 
   useEffect(() => {
     fetchTables()
@@ -84,7 +85,6 @@ export default function TablesPage() {
   const fetchTables = async () => {
     try {
       setLoading(true)
-      const supabase = getSupabaseBrowserClient()
       
       // Get the current user's establishment
       const { data: { user } } = await supabase.auth.getUser()
@@ -119,7 +119,6 @@ export default function TablesPage() {
   const handleAddTable = async (formData: HTMLFormElement) => {
     try {
       setSaving(true)
-      const supabase = getSupabaseBrowserClient()
       
       // Get user's establishment
       const { data: { user } } = await supabase.auth.getUser()
@@ -172,7 +171,6 @@ export default function TablesPage() {
 
   const handleDeleteTable = async (id: string) => {
     try {
-      const supabase = getSupabaseBrowserClient()
       const { error } = await supabase
         .from('tables')
         .delete()
@@ -190,7 +188,6 @@ export default function TablesPage() {
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
     try {
-      const supabase = getSupabaseBrowserClient()
       const { error } = await supabase
         .from('tables')
         .update({ active: !currentActive })

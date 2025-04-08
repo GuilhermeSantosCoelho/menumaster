@@ -51,14 +51,7 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      const { error } = await signIn(values.email, values.password);
-
-      if (error) {
-        toast.error('Falha ao entrar. Verifique seu e-mail e senha.');
-        console.error(error);
-        return;
-      }
-
+      await signIn(values.email, values.password);
       toast.success('Login realizado com sucesso!');
       router.push(redirectTo);
     } catch (error) {

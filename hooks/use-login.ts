@@ -1,9 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation'
-
-import { createClient } from '@/utils/supabase/server'
 
 export async function login({ email, password }: { email: string; password: string }) {
   const supabase = await createClient()
@@ -43,4 +42,10 @@ export async function signup(formData: FormData) {
 
   revalidatePath('/', 'layout')
   redirect('/')
+}
+
+export async function signOut() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  redirect('/login')
 }

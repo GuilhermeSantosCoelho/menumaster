@@ -1,13 +1,12 @@
-import { getSupabaseBrowserClient } from "@/lib/supabase"
 import type { Database } from "@/types/supabase"
-
+import { createClient } from "@/utils/supabase/client"
 export type Establishment = Database["public"]["Tables"]["establishments"]["Row"]
 export type NewEstablishment = Database["public"]["Tables"]["establishments"]["Insert"]
 export type UpdateEstablishment = Database["public"]["Tables"]["establishments"]["Update"]
 
 export const EstablishmentService = {
   async getUserEstablishments(userId: string): Promise<Establishment[]> {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
 
     // Get establishments where user is owner
     const { data: ownedEstablishments, error: ownedError } = await supabase
@@ -39,7 +38,7 @@ export const EstablishmentService = {
   },
 
   async getEstablishment(id: string): Promise<Establishment | null> {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
 
     const { data, error } = await supabase.from("establishments").select("*").eq("id", id).single()
 
@@ -52,7 +51,7 @@ export const EstablishmentService = {
   },
 
   async createEstablishment(establishment: NewEstablishment): Promise<Establishment> {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
 
     const { data, error } = await supabase.from("establishments").insert(establishment).select().single()
 
@@ -65,7 +64,7 @@ export const EstablishmentService = {
   },
 
   async updateEstablishment(id: string, establishment: UpdateEstablishment): Promise<Establishment> {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
 
     const { data, error } = await supabase.from("establishments").update(establishment).eq("id", id).select().single()
 
@@ -78,7 +77,7 @@ export const EstablishmentService = {
   },
 
   async uploadLogo(establishmentId: string, file: File): Promise<string> {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = createClient()
 
     // Upload to storage
     const { data, error } = await supabase.storage.from("logos").upload(`${establishmentId}/${file.name}`, file, {

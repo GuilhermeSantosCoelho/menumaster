@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Coffee, Edit, MoreHorizontal, Plus, Trash } from "lucide-react"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -54,6 +54,7 @@ export default function ProductsPage() {
   const [filterCategory, setFilterCategory] = useState<string>("todos")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const supabase = createClient();
 
   useEffect(() => {
     fetchProducts()
@@ -62,7 +63,6 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const supabase = getSupabaseBrowserClient()
       
       // Get the current user's establishment
       const { data: { user } } = await supabase.auth.getUser()
@@ -103,7 +103,6 @@ export default function ProductsPage() {
   const handleAddProduct = async (formData: HTMLFormElement) => {
     try {
       setSaving(true)
-      const supabase = getSupabaseBrowserClient()
       
       // Get user's establishment
       const { data: { user } } = await supabase.auth.getUser()
@@ -171,7 +170,6 @@ export default function ProductsPage() {
 
   const handleDeleteProduct = async (id: string) => {
     try {
-      const supabase = getSupabaseBrowserClient()
       const { error } = await supabase
         .from('products')
         .delete()
@@ -189,7 +187,6 @@ export default function ProductsPage() {
 
   const handleToggleAvailability = async (id: string, currentAvailability: boolean) => {
     try {
-      const supabase = getSupabaseBrowserClient()
       const { error } = await supabase
         .from('products')
         .update({ available: !currentAvailability })
