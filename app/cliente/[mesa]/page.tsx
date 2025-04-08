@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { Minus, Plus, Receipt, ShoppingCart, Utensils, Clock, History } from 'lucide-react';
-import { getSupabaseBrowserClient } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -97,15 +97,15 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [isOrdersSheetOpen, setIsOrdersSheetOpen] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
     fetchTableAndProducts();
     fetchOrders();
 
     // Set up real-time subscription for order updates
-    const supabase = getSupabaseBrowserClient();
     console.log('Setting up subscription for table:', resolvedParams.mesa);
-    
+
     const channel = supabase
       .channel(`table-${resolvedParams.mesa}-orders`)
       .on(
@@ -114,7 +114,7 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
           event: 'UPDATE',
           schema: 'public',
           table: 'orders',
-          filter: `table_id=eq.${resolvedParams.mesa}`
+          filter: `table_id=eq.${resolvedParams.mesa}`,
         },
         (payload) => {
           console.log('Change received:', payload);
@@ -139,7 +139,6 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
   const fetchTableAndProducts = async () => {
     try {
       setLoading(true);
-      const supabase = getSupabaseBrowserClient();
 
       // Get table information
       const { data: table, error: tableError } = await supabase
@@ -187,11 +186,11 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
   const fetchOrders = async () => {
     try {
       setLoadingOrders(true);
-      const supabase = getSupabaseBrowserClient();
 
       const { data: orders, error } = await supabase
         .from('orders')
-        .select(`
+        .select(
+          `
           *,
           order_items (
             *,
@@ -202,7 +201,8 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
               )
             )
           )
-        `)
+        `
+        )
         .eq('table_id', resolvedParams.mesa)
         .order('created_at', { ascending: false });
 
@@ -211,7 +211,7 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
       // Transform the orders to include the category name
       const transformedOrders = (orders || []).map((order) => ({
         ...order,
-        order_items: order.order_items.map((item) => ({
+        order_items: order.order_items.map((item: OrderItem) => ({
           ...item,
           product: {
             ...item.product,
@@ -281,8 +281,6 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
 
   const sendOrder = async () => {
     try {
-      const supabase = getSupabaseBrowserClient();
-
       // First, get the establishment_id from the table
       const { data: table, error: tableError } = await supabase
         .from('tables')
@@ -431,7 +429,10 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
 
               <TabsContent value={currentCategory} className="space-y-6">
                 {filteredProducts.map((product) => (
-                  <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <Card
+                    key={product.id}
+                    className="overflow-hidden hover:shadow-lg transition-shadow"
+                  >
                     <div className="flex flex-col sm:flex-row sm:items-center">
                       {product.image && (
                         <div className="w-full sm:w-40 h-40">
@@ -450,9 +451,7 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
                               {product.description}
                             </CardDescription>
                           </div>
-                          <div className="text-lg font-semibold">
-                            R$ {product.price.toFixed(2)}
-                          </div>
+                          <div className="text-lg font-semibold">R$ {product.price.toFixed(2)}</div>
                         </div>
                         <div className="flex justify-end mt-4">
                           <Button
@@ -773,7 +772,9 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
                               </div>
                             </div>
                             <DialogFooter>
-                              <Button variant="outline" className="w-full">Fechar</Button>
+                              <Button variant="outline" className="w-full">
+                                Fechar
+                              </Button>
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
@@ -799,7 +800,9 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="text-xl">{selectedProduct?.name}</DialogTitle>
-            <DialogDescription className="text-base">{selectedProduct?.description}</DialogDescription>
+            <DialogDescription className="text-base">
+              {selectedProduct?.description}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="flex items-center justify-between">
@@ -840,7 +843,8 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
               Cancelar
             </Button>
             <Button onClick={addToCart} className="flex-1">
-              Adicionar - R$ {selectedProduct ? (selectedProduct.price * selectedQuantity).toFixed(2) : '0.00'}
+              Adicionar - R${' '}
+              {selectedProduct ? (selectedProduct.price * selectedQuantity).toFixed(2) : '0.00'}
             </Button>
           </DialogFooter>
         </DialogContent>

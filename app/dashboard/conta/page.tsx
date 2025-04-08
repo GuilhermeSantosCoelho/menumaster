@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { User, Lock, Mail, Phone } from "lucide-react"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 
 export default function ContaPage() {
@@ -19,6 +19,7 @@ export default function ContaPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const supabase = createClient();
 
   useEffect(() => {
     fetchUserData();
@@ -26,7 +27,6 @@ export default function ContaPage() {
 
   const fetchUserData = async () => {
     try {
-      const supabase = getSupabaseBrowserClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
@@ -54,7 +54,6 @@ export default function ContaPage() {
   const updateProfile = async () => {
     try {
       setLoading(true);
-      const supabase = getSupabaseBrowserClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -90,7 +89,6 @@ export default function ContaPage() {
       }
       
       setPasswordLoading(true);
-      const supabase = getSupabaseBrowserClient();
       
       const { error } = await supabase.auth.updateUser({
         password: newPassword

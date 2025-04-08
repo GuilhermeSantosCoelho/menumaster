@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
 
 const formSchema = z
   .object({
@@ -28,7 +28,7 @@ const formSchema = z
 export default function ResetPasswordPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const supabase = getSupabaseBrowserClient()
+  const supabase = createClient()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

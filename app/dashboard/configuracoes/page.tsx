@@ -1,124 +1,142 @@
-"use client"
+'use client';
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { Paintbrush, Save, UploadCloud } from "lucide-react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
-import { toast } from "sonner"
+import type React from 'react';
+import { useState, useEffect } from 'react';
+import { Paintbrush, Save, UploadCloud } from 'lucide-react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { createClient } from '@/utils/supabase/client';
+import { toast } from 'sonner';
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 
 const perfilFormSchema = z.object({
   name: z.string().min(2, {
-    message: "O nome deve ter pelo menos 2 caracteres.",
+    message: 'O nome deve ter pelo menos 2 caracteres.',
   }),
   address: z.string().min(5, {
-    message: "O endereço deve ter pelo menos 5 caracteres.",
+    message: 'O endereço deve ter pelo menos 5 caracteres.',
   }),
   phone: z.string().min(8, {
-    message: "O telefone deve ter pelo menos 8 caracteres.",
+    message: 'O telefone deve ter pelo menos 8 caracteres.',
   }),
   description: z.string().max(500, {
-    message: "A descrição não pode ter mais de 500 caracteres.",
+    message: 'A descrição não pode ter mais de 500 caracteres.',
   }),
-})
+});
 
 const temaFormSchema = z.object({
   primary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, {
-    message: "Cor inválida, use formato hexadecimal (#RRGGBB)",
+    message: 'Cor inválida, use formato hexadecimal (#RRGGBB)',
   }),
   secondary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, {
-    message: "Cor inválida, use formato hexadecimal (#RRGGBB)",
+    message: 'Cor inválida, use formato hexadecimal (#RRGGBB)',
   }),
-})
+});
 
 export default function ConfiguracoesPage() {
-  const [logo, setLogo] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [logo, setLogo] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   // Form para dados do perfil
   const perfilForm = useForm<z.infer<typeof perfilFormSchema>>({
     resolver: zodResolver(perfilFormSchema),
     defaultValues: {
-      name: "",
-      address: "",
-      phone: "",
-      description: "",
+      name: '',
+      address: '',
+      phone: '',
+      description: '',
     },
-  })
+  });
 
   // Form para tema
   const temaForm = useForm<z.infer<typeof temaFormSchema>>({
     resolver: zodResolver(temaFormSchema),
     defaultValues: {
-      primary_color: "#0f172a",
-      secondary_color: "#f97316",
+      primary_color: '#0f172a',
+      secondary_color: '#f97316',
     },
-  })
+  });
 
   useEffect(() => {
-    fetchEstablishmentData()
-  }, [])
+    fetchEstablishmentData();
+  }, []);
 
   const fetchEstablishmentData = async () => {
     try {
-      setLoading(true)
-      const supabase = getSupabaseBrowserClient()
-      
+      setLoading(true);
+
       // Get the current user's establishment
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
       const { data: establishment, error } = await supabase
         .from('establishments')
         .select('*')
         .eq('owner_id', user.id)
-        .single()
-      
-      if (error) throw error
-      if (!establishment) throw new Error("No establishment found")
+        .single();
+
+      if (error) throw error;
+      if (!establishment) throw new Error('No establishment found');
 
       // Set form values
       perfilForm.reset({
-        name: establishment.name || "",
-        address: establishment.address || "",
-        phone: establishment.phone || "",
-        description: establishment.description || "",
-      })
+        name: establishment.name || '',
+        address: establishment.address || '',
+        phone: establishment.phone || '',
+        description: establishment.description || '',
+      });
 
       temaForm.reset({
-        primary_color: establishment.primary_color || "#0f172a",
-        secondary_color: establishment.secondary_color || "#f97316",
-      })
+        primary_color: establishment.primary_color || '#0f172a',
+        secondary_color: establishment.secondary_color || '#f97316',
+      });
 
       if (establishment.logo) {
-        setLogo(establishment.logo)
+        setLogo(establishment.logo);
       }
     } catch (error) {
-      console.error('Error fetching establishment data:', error)
-      toast.error("Erro ao carregar dados do estabelecimento")
+      console.error('Error fetching establishment data:', error);
+      toast.error('Erro ao carregar dados do estabelecimento');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const onSubmitPerfil = async (data: z.infer<typeof perfilFormSchema>) => {
     try {
-      setSaving(true)
-      const supabase = getSupabaseBrowserClient()
-      
+      setSaving(true);
+
       // Get the current user's establishment
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
       const { error } = await supabase
         .from('establishments')
@@ -128,27 +146,28 @@ export default function ConfiguracoesPage() {
           phone: data.phone,
           description: data.description,
         })
-        .eq('owner_id', user.id)
+        .eq('owner_id', user.id);
 
-      if (error) throw error
+      if (error) throw error;
 
-      toast.success("Dados do estabelecimento atualizados com sucesso")
+      toast.success('Dados do estabelecimento atualizados com sucesso');
     } catch (error) {
-      console.error('Error updating establishment:', error)
-      toast.error("Erro ao atualizar dados do estabelecimento")
+      console.error('Error updating establishment:', error);
+      toast.error('Erro ao atualizar dados do estabelecimento');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const onSubmitTema = async (data: z.infer<typeof temaFormSchema>) => {
     try {
-      setSaving(true)
-      const supabase = getSupabaseBrowserClient()
-      
+      setSaving(true);
+
       // Get the current user's establishment
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
       const { error } = await supabase
         .from('establishments')
@@ -156,79 +175,82 @@ export default function ConfiguracoesPage() {
           primary_color: data.primary_color,
           secondary_color: data.secondary_color,
         })
-        .eq('owner_id', user.id)
+        .eq('owner_id', user.id);
 
-      if (error) throw error
+      if (error) throw error;
 
-      toast.success("Tema atualizado com sucesso")
+      toast.success('Tema atualizado com sucesso');
     } catch (error) {
-      console.error('Error updating theme:', error)
-      toast.error("Erro ao atualizar tema")
+      console.error('Error updating theme:', error);
+      toast.error('Erro ao atualizar tema');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
-      const file = e.target.files?.[0]
-      if (!file) return
+      const file = e.target.files?.[0];
+      if (!file) return;
 
-      setSaving(true)
-      const supabase = getSupabaseBrowserClient()
-      
+      setSaving(true);
+
       // Get the current user's establishment
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
       // Create a unique file path
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
       // Upload the file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('establishmentlogos')
         .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: false
-        })
+          upsert: false,
+        });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError)
-        throw uploadError
+        console.error('Upload error:', uploadError);
+        throw uploadError;
       }
 
       // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('establishmentlogos')
-        .getPublicUrl(fileName)
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('establishmentlogos').getPublicUrl(fileName);
 
       // Update the establishment with the new logo URL
       const { error: updateError } = await supabase
         .from('establishments')
         .update({ logo: publicUrl })
-        .eq('owner_id', user.id)
+        .eq('owner_id', user.id);
 
       if (updateError) {
-        console.error('Update error:', updateError)
-        throw updateError
+        console.error('Update error:', updateError);
+        throw updateError;
       }
 
-      setLogo(publicUrl)
-      toast.success("Logo atualizada com sucesso")
+      setLogo(publicUrl);
+      toast.success('Logo atualizada com sucesso');
     } catch (error) {
-      console.error('Error uploading logo:', error)
-      toast.error("Erro ao atualizar logo")
+      console.error('Error uploading logo:', error);
+      toast.error('Erro ao atualizar logo');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground">Personalize seu estabelecimento e ajuste suas preferências</p>
+        <p className="text-muted-foreground">
+          Personalize seu estabelecimento e ajuste suas preferências
+        </p>
       </div>
 
       <Tabs defaultValue="perfil" className="space-y-4">
@@ -241,7 +263,9 @@ export default function ConfiguracoesPage() {
           <Card>
             <CardHeader>
               <CardTitle>Informações do Estabelecimento</CardTitle>
-              <CardDescription>Defina as informações básicas do seu restaurante ou bar</CardDescription>
+              <CardDescription>
+                Defina as informações básicas do seu restaurante ou bar
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...perfilForm}>
@@ -255,7 +279,9 @@ export default function ConfiguracoesPage() {
                         <FormControl>
                           <Input {...field} disabled={loading} />
                         </FormControl>
-                        <FormDescription>Este nome será exibido para seus clientes.</FormDescription>
+                        <FormDescription>
+                          Este nome será exibido para seus clientes.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -303,7 +329,9 @@ export default function ConfiguracoesPage() {
                             disabled={loading}
                           />
                         </FormControl>
-                        <FormDescription>Esta descrição será exibida na página de pedidos.</FormDescription>
+                        <FormDescription>
+                          Esta descrição será exibida na página de pedidos.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -324,10 +352,10 @@ export default function ConfiguracoesPage() {
                         )}
                       </div>
                       <div className="flex-1">
-                        <Input 
-                          id="logo" 
-                          type="file" 
-                          accept="image/*" 
+                        <Input
+                          id="logo"
+                          type="file"
+                          accept="image/*"
                           onChange={handleLogoChange}
                           disabled={loading || saving}
                         />
@@ -340,7 +368,7 @@ export default function ConfiguracoesPage() {
 
                   <Button type="submit" disabled={loading || saving} className="w-full">
                     {saving ? (
-                      "Salvando..."
+                      'Salvando...'
                     ) : (
                       <>
                         <Save className="mr-2 h-4 w-4" />
@@ -358,7 +386,9 @@ export default function ConfiguracoesPage() {
           <Card>
             <CardHeader>
               <CardTitle>Personalização</CardTitle>
-              <CardDescription>Personalize o tema e a aparência da página de pedidos</CardDescription>
+              <CardDescription>
+                Personalize o tema e a aparência da página de pedidos
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...temaForm}>
@@ -373,7 +403,10 @@ export default function ConfiguracoesPage() {
                           <FormControl>
                             <Input {...field} disabled={loading} />
                           </FormControl>
-                          <div className="h-10 w-12 rounded border" style={{ backgroundColor: field.value }} />
+                          <div
+                            className="h-10 w-12 rounded border"
+                            style={{ backgroundColor: field.value }}
+                          />
                         </div>
                         <FormDescription>Cor principal do seu estabelecimento.</FormDescription>
                         <FormMessage />
@@ -391,9 +424,14 @@ export default function ConfiguracoesPage() {
                           <FormControl>
                             <Input {...field} disabled={loading} />
                           </FormControl>
-                          <div className="h-10 w-12 rounded border" style={{ backgroundColor: field.value }} />
+                          <div
+                            className="h-10 w-12 rounded border"
+                            style={{ backgroundColor: field.value }}
+                          />
                         </div>
-                        <FormDescription>Cor de destaque para botões e elementos importantes.</FormDescription>
+                        <FormDescription>
+                          Cor de destaque para botões e elementos importantes.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -403,14 +441,16 @@ export default function ConfiguracoesPage() {
                     <div className="font-medium mb-2">Pré-visualização</div>
                     <div
                       className="p-4 rounded-md text-white"
-                      style={{ backgroundColor: temaForm.watch("primary_color") }}
+                      style={{ backgroundColor: temaForm.watch('primary_color') }}
                     >
                       <div className="text-lg font-bold mb-2">Restaurante Exemplo</div>
-                      <div className="text-sm opacity-80">Restaurante especializado em comida contemporânea</div>
+                      <div className="text-sm opacity-80">
+                        Restaurante especializado em comida contemporânea
+                      </div>
                       <div className="mt-4">
                         <button
                           className="px-4 py-2 rounded-md text-white"
-                          style={{ backgroundColor: temaForm.watch("secondary_color") }}
+                          style={{ backgroundColor: temaForm.watch('secondary_color') }}
                         >
                           Botão de exemplo
                         </button>
@@ -420,7 +460,7 @@ export default function ConfiguracoesPage() {
 
                   <Button type="submit" disabled={loading || saving} className="w-full">
                     {saving ? (
-                      "Salvando..."
+                      'Salvando...'
                     ) : (
                       <>
                         <Paintbrush className="mr-2 h-4 w-4" />
@@ -438,6 +478,5 @@ export default function ConfiguracoesPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
-
