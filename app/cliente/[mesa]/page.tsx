@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { Minus, Plus, Receipt, ShoppingCart, Utensils, Clock, History } from 'lucide-react';
+import { Minus, Plus, Receipt, ShoppingCart, Utensils, Clock, History, Wifi, ChevronDown } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 
@@ -82,6 +82,67 @@ type Order = {
   order_items: OrderItem[];
 };
 
+function WiFiConnection({ ssid, password }: { ssid: string; password: string }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!ssid) return null;
+
+  return (
+    <div className="bg-card rounded-lg border shadow-sm mb-4">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <div className="bg-primary/10 p-2 rounded-full">
+            <Wifi className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-medium text-sm">WiFi do Estabelecimento</h3>
+            <p className="text-xs text-muted-foreground">Toque para ver as informações</p>
+          </div>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 pt-0 space-y-3">
+          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-md">
+            <span className="font-medium text-sm">Nome da Rede (SSID)</span>
+            <span className="font-mono text-sm">{ssid}</span>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-md">
+            <span className="font-medium text-sm">Senha</span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm">{showPassword ? password : '••••••••'}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPassword(!showPassword)}
+                className="h-8 px-2"
+              >
+                {showPassword ? 'Ocultar' : 'Mostrar'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            <p className="mb-2">Para conectar:</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Abra as configurações do seu dispositivo</li>
+              <li>Vá para a seção de WiFi</li>
+              <li>Selecione a rede "{ssid}"</li>
+              <li>Digite a senha quando solicitado</li>
+            </ol>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ClientePedido({ params }: { params: Promise<{ mesa: string }> }) {
   const resolvedParams = use(params);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -97,11 +158,18 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [isOrdersSheetOpen, setIsOrdersSheetOpen] = useState(false);
+  const [wifiInfo, setWifiInfo] = useState<{ ssid: string; password: string }>({
+    ssid: '',
+    password: '',
+  });
+
+  // Initialize Supabase client
   const supabase = createClient();
 
   useEffect(() => {
     fetchTableAndProducts();
     fetchOrders();
+    fetchWifiInfo();
 
     // Set up real-time subscription for order updates
     console.log('Setting up subscription for table:', resolvedParams.mesa);
@@ -111,7 +179,7 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'orders',
           filter: `table_id=eq.${resolvedParams.mesa}`,
@@ -226,6 +294,35 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
       toast.error('Erro ao carregar pedidos');
     } finally {
       setLoadingOrders(false);
+    }
+  };
+
+  const fetchWifiInfo = async () => {
+    try {
+      const { data: table, error: tableError } = await supabase
+        .from('tables')
+        .select('establishment_id')
+        .eq('id', resolvedParams.mesa)
+        .single();
+
+      if (tableError) throw tableError;
+
+      const { data, error } = await supabase
+        .from('establishments')
+        .select('wifi_ssid, wifi_password')
+        .eq('id', table?.establishment_id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setWifiInfo({
+          ssid: data.wifi_ssid || '',
+          password: data.wifi_password || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching WiFi info:', error);
     }
   };
 
@@ -418,6 +515,8 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
               <p className="text-muted-foreground text-lg">Escolha os itens e faça seu pedido</p>
         </div>
 
+            <WiFiConnection ssid={wifiInfo.ssid} password={wifiInfo.password} />
+
             <Tabs defaultValue="todos" className="w-full" onValueChange={setCurrentCategory}>
               <TabsList className="mb-6 w-full justify-start overflow-x-auto">
                 {categories.map((cat) => (
@@ -555,7 +654,7 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
         {/* Mobile Order History Button */}
                 <Button
                   variant="outline"
-          size="lg"
+          size="sm"
           className="lg:hidden fixed left-4 bottom-4 gap-2 shadow-lg rounded-full"
           onClick={() => setIsOrdersSheetOpen(true)}
         >
@@ -566,7 +665,7 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
               {orders.length}
             </Badge>
           )}
-                </Button>
+        </Button>
 
         {/* Mobile Order History Sheet */}
         <Sheet open={isOrdersSheetOpen} onOpenChange={setIsOrdersSheetOpen}>
@@ -646,7 +745,7 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
         <SheetTrigger asChild>
           <Button
               className="fixed bottom-4 right-4 gap-2 shadow-lg rounded-full px-6"
-            size="lg"
+            size="sm"
               disabled={cart.length === 0 || orderSent}
           >
             <ShoppingCart className="h-5 w-5" />

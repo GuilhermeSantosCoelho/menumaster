@@ -17,6 +17,7 @@ import {
   Table,
   User,
   Utensils,
+  Wifi,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -56,6 +57,16 @@ const navItems: NavItem[] = [
     title: "QR Codes",
     href: "/dashboard/qrcodes",
     icon: QrCode,
+  },
+  {
+    title: "Plaquinhas",
+    href: "/dashboard/table-signs",
+    icon: QrCode,
+  },
+  {
+    title: "WiFi",
+    href: "/dashboard/wifi",
+    icon: Wifi,
   },
   {
     title: "Faturas",
