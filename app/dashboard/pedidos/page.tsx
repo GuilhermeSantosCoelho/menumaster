@@ -329,6 +329,14 @@ export default function OrdersPage() {
                             <span className="text-xs">•</span>
                             <span>{order.items.length} itens</span>
                           </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {order.items.map((item, index) => (
+                              <span key={item.id}>
+                                {item.quantity}x {item.product.name}
+                                {index < order.items.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">

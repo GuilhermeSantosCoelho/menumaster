@@ -18,6 +18,7 @@ import {
   User,
   Utensils,
   Wifi,
+  Tags
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -42,6 +43,11 @@ const navItems: NavItem[] = [
     title: "Produtos",
     href: "/dashboard/produtos",
     icon: ShoppingBag,
+  },
+  {
+    title: "Categorias",
+    href: "/dashboard/categorias",
+    icon: Tags,
   },
   {
     title: "Mesas",
