@@ -1,32 +1,23 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { createClient } from '@/utils/supabase/client';
 import {
+  ChevronDown,
+  Clock,
+  History,
   Minus,
   Plus,
   Receipt,
   ShoppingCart,
   Utensils,
-  Clock,
-  History,
   Wifi,
-  ChevronDown,
 } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
+import { use, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +28,15 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type DatabaseProduct = {
   id: string;
@@ -69,14 +69,24 @@ type OrderStatus = 'PENDING' | 'PREPARING' | 'READY' | 'DELIVERED' | 'CANCELLED'
 
 type OrderItem = {
   id: string;
+  product: {
+    id: string;
+    name: string;
+    categories?: {
+      name: string | null;
+    } | null;
+  };
   quantity: number;
   unit_price: number;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-  order_id: string;
+  notes?: string;
+};
+
+type GroupedOrderItem = {
   product_id: string;
-  product: DatabaseProduct;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  notes?: string;
 };
 
 type Order = {
@@ -156,6 +166,25 @@ function WiFiConnection({ ssid, password }: { ssid: string; password: string }) 
     </div>
   );
 }
+
+const groupOrderItems = (items: OrderItem[]): GroupedOrderItem[] => {
+  const grouped = items.reduce((acc, item) => {
+    const key = `${item.product.id}-${item.notes || ''}`;
+    if (!acc[key]) {
+      acc[key] = {
+        product_id: item.product.id,
+        product_name: item.product.name,
+        quantity: 0,
+        unit_price: item.unit_price,
+        notes: item.notes
+      };
+    }
+    acc[key].quantity += item.quantity;
+    return acc;
+  }, {} as Record<string, GroupedOrderItem>);
+
+  return Object.values(grouped);
+};
 
 export default function ClientePedido({ params }: { params: Promise<{ mesa: string }> }) {
   const resolvedParams = use(params);
@@ -615,56 +644,59 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
 
             {orders.length > 0 ? (
               <div className="space-y-6">
-                {orders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="bg-card rounded-lg border shadow-sm overflow-hidden"
-                  >
-                    <div className="p-4 flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {formatDate(order.created_at)}
+                {orders.map((order) => {
+                  const groupedItems = groupOrderItems(order.order_items);
+                  return (
+                    <div
+                      key={order.id}
+                      className="bg-card rounded-lg border shadow-sm overflow-hidden"
+                    >
+                      <div className="p-4 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {formatDate(order.created_at)}
+                            </span>
+                          </div>
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                              order.status
+                            )}`}
+                          >
+                            {getStatusText(order.status)}
                           </span>
                         </div>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                            order.status
-                          )}`}
-                        >
-                          {getStatusText(order.status)}
-                        </span>
-                      </div>
-                      <div className="border-t pt-2 mt-2">
-                        {order.order_items.map((item) => (
-                          <div key={item.id} className="py-2">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <div className="font-medium">{item.product.name}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {item.quantity}x R$ {item.unit_price.toFixed(2)}
+                        <div className="border-t pt-2 mt-2">
+                          {groupedItems.map((item) => (
+                            <div key={`${item.product_id}-${item.notes || ''}`} className="py-2">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="font-medium">{item.product_name}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {item.quantity}x R$ {item.unit_price.toFixed(2)}
+                                  </div>
+                                </div>
+                                <div className="font-medium">
+                                  R$ {(item.quantity * item.unit_price).toFixed(2)}
                                 </div>
                               </div>
-                              <div className="font-medium">
-                                R$ {(item.quantity * item.unit_price).toFixed(2)}
-                              </div>
+                              {item.notes && (
+                                <div className="mt-1 text-sm text-muted-foreground bg-muted/30 rounded-md px-3 py-1">
+                                  {item.notes}
+                                </div>
+                              )}
                             </div>
-                            {item.notes && (
-                              <div className="mt-1 text-sm text-muted-foreground bg-muted/30 rounded-md px-3 py-1">
-                                {item.notes}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="border-t pt-2 flex justify-between items-center">
-                        <span className="text-sm font-medium">Total</span>
-                        <span className="font-semibold">R$ {order.total_amount.toFixed(2)}</span>
+                          ))}
+                        </div>
+                        <div className="border-t pt-2 flex justify-between items-center">
+                          <span className="text-sm font-medium">Total</span>
+                          <span className="font-semibold">R$ {order.total_amount.toFixed(2)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8 bg-muted/30 rounded-lg">
@@ -692,7 +724,7 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
 
         {/* Mobile Order History Sheet */}
         <Sheet open={isOrdersSheetOpen} onOpenChange={setIsOrdersSheetOpen}>
-          <SheetContent side="left" className="w-full sm:max-w-md">
+          <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
             <SheetHeader className="space-y-3 pb-4 border-b">
               <SheetTitle className="flex items-center gap-2">
                 <History className="h-5 w-5" />
@@ -703,56 +735,59 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
             <div className="mt-6 space-y-6">
               {orders.length > 0 ? (
                 <div className="space-y-6">
-                  {orders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="bg-card rounded-lg border shadow-sm overflow-hidden"
-                    >
-                      <div className="p-4 flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">
-                              {formatDate(order.created_at)}
+                  {orders.map((order) => {
+                    const groupedItems = groupOrderItems(order.order_items);
+                    return (
+                      <div
+                        key={order.id}
+                        className="bg-card rounded-lg border shadow-sm overflow-hidden"
+                      >
+                        <div className="p-4 flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">
+                                {formatDate(order.created_at)}
+                              </span>
+                            </div>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                                order.status
+                              )}`}
+                            >
+                              {getStatusText(order.status)}
                             </span>
                           </div>
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                              order.status
-                            )}`}
-                          >
-                            {getStatusText(order.status)}
-                          </span>
-                        </div>
-                        <div className="border-t pt-2 mt-2">
-                          {order.order_items.map((item) => (
-                            <div key={item.id} className="py-2">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <div className="font-medium">{item.product.name}</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {item.quantity}x R$ {item.unit_price.toFixed(2)}
+                          <div className="border-t pt-2 mt-2">
+                            {groupedItems.map((item) => (
+                              <div key={`${item.product_id}-${item.notes || ''}`} className="py-2">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <div className="font-medium">{item.product_name}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {item.quantity}x R$ {item.unit_price.toFixed(2)}
+                                    </div>
+                                  </div>
+                                  <div className="font-medium">
+                                    R$ {(item.quantity * item.unit_price).toFixed(2)}
                                   </div>
                                 </div>
-                                <div className="font-medium">
-                                  R$ {(item.quantity * item.unit_price).toFixed(2)}
-                                </div>
+                                {item.notes && (
+                                  <div className="mt-1 text-sm text-muted-foreground bg-muted/30 rounded-md px-3 py-1">
+                                    {item.notes}
+                                  </div>
+                                )}
                               </div>
-                              {item.notes && (
-                                <div className="mt-1 text-sm text-muted-foreground bg-muted/30 rounded-md px-3 py-1">
-                                  {item.notes}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="border-t pt-2 flex justify-between items-center">
-                          <span className="text-sm font-medium">Total</span>
-                          <span className="font-semibold">R$ {order.total_amount.toFixed(2)}</span>
+                            ))}
+                          </div>
+                          <div className="border-t pt-2 flex justify-between items-center">
+                            <span className="text-sm font-medium">Total</span>
+                            <span className="font-semibold">R$ {order.total_amount.toFixed(2)}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 bg-muted/30 rounded-lg">

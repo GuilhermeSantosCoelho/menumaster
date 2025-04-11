@@ -40,6 +40,11 @@ const navItems: NavItem[] = [
     icon: Home,
   },
   {
+    title: "Pedidos",
+    href: "/dashboard/pedidos",
+    icon: Receipt,
+  },
+  {
     title: "Produtos",
     href: "/dashboard/produtos",
     icon: ShoppingBag,
@@ -53,11 +58,6 @@ const navItems: NavItem[] = [
     title: "Mesas",
     href: "/dashboard/mesas",
     icon: Table,
-  },
-  {
-    title: "Pedidos",
-    href: "/dashboard/pedidos",
-    icon: Receipt,
   },
   {
     title: "QR Codes",
