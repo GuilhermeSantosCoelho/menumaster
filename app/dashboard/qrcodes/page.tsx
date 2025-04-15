@@ -19,6 +19,7 @@ import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { QRCodeSVG } from "qrcode.react"
 import * as QRCode from "qrcode"
+import Link from "next/link"
 
 type Table = {
   id: string
@@ -79,7 +80,7 @@ export default function QRCodesPage() {
   }
 
   const generateQRCodeUrl = (tableId: string) => {
-    return `${window.location.origin}/cliente/${tableId}`
+    return `${window.location.origin}/cliente/${tableId}/session`
   }
 
   const downloadQRCode = async (url: string, tableNumber: number, action: 'download' | 'print') => {
@@ -118,195 +119,214 @@ export default function QRCodesPage() {
         <p className="text-muted-foreground">Gerencie os QR codes das mesas do seu estabelecimento</p>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <Button onClick={handleCustomize} className="gap-2">
-            <QrCode className="h-4 w-4" />
-            Personalizar QR Codes
-          </Button>
-        </div>
+      {tables.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <QrCode className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nenhuma mesa cadastrada</h3>
+            <p className="text-sm text-muted-foreground text-center mb-4">
+              Adicione mesas ao seu estabelecimento para gerar QR codes personalizados.
+            </p>
+            <Button asChild>
+              <Link href="/dashboard/mesas">
+                Gerenciar Mesas
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <Button onClick={handleCustomize} className="gap-2">
+                <QrCode className="h-4 w-4" />
+                Personalizar QR Codes
+              </Button>
+            </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Printer className="h-4 w-4" />
-            Imprimir Todos
-          </Button>
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
-            Baixar Todos
-          </Button>
-        </div>
-      </div>
-
-      <Tabs defaultValue="grid" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="grid">Grade</TabsTrigger>
-          <TabsTrigger value="lista">Lista</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="grid">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {tables.map((table) => (
-              <Card key={table.id} className="overflow-hidden">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-lg">Mesa {table.number}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 flex justify-center">
-                  <div className="w-32 h-32 bg-white flex items-center justify-center rounded-md p-2">
-                    <QRCodeSVG
-                      value={generateQRCodeUrl(table.id)}
-                      size={120}
-                      level="H"
-                    />
-                  </div>
-                </CardContent>
-                <CardFooter className="p-4 pt-0 flex justify-between">
-                  <Button variant="outline" size="sm" onClick={() => handleViewQRCode(table)}>
-                    Ver QR Code
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => downloadQRCode(generateQRCodeUrl(table.id), table.number, 'download')}>
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+            <div className="flex gap-2">
+              <Button variant="outline" className="gap-2">
+                <Printer className="h-4 w-4" />
+                Imprimir Todos
+              </Button>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                Baixar Todos
+              </Button>
+            </div>
           </div>
-        </TabsContent>
 
-        <TabsContent value="lista">
-          <Card>
-            <CardContent className="p-0">
-              <div className="rounded-md border">
-                <div className="grid grid-cols-3 p-4 bg-muted text-sm font-medium">
-                  <div>Mesa</div>
-                  <div>QR Code</div>
-                  <div>Ações</div>
-                </div>
+          <Tabs defaultValue="grid" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="grid">Grade</TabsTrigger>
+              <TabsTrigger value="lista">Lista</TabsTrigger>
+            </TabsList>
 
+            <TabsContent value="grid">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {tables.map((table) => (
-                  <div key={table.id} className="grid grid-cols-3 p-4 border-t items-center">
-                    <div className="font-medium">Mesa {table.number}</div>
-                    <div className="flex items-center">
-                      <div className="w-12 h-12 bg-white flex items-center justify-center rounded-md mr-2 p-1">
+                  <Card key={table.id} className="overflow-hidden">
+                    <CardHeader className="p-4">
+                      <CardTitle className="text-lg">Mesa {table.number}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 flex justify-center">
+                      <div className="w-32 h-32 bg-white flex items-center justify-center rounded-md p-2">
                         <QRCodeSVG
                           value={generateQRCodeUrl(table.id)}
-                          size={40}
+                          size={120}
                           level="H"
-                          includeMargin={true}
                         />
                       </div>
-                      <span className="text-sm text-muted-foreground">{generateQRCodeUrl(table.id)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" title="Copiar Link" onClick={() => {
-                        navigator.clipboard.writeText(generateQRCodeUrl(table.id))
-                        toast.success('Link copiado com sucesso!')
-                      }}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" title="Compartilhar" onClick={() => {
-                        navigator.share({
-                          title: `Mesa ${table.number}`,
-                          text: `Acesse o menu digital da Mesa ${table.number}`,
-                          url: generateQRCodeUrl(table.id)
-                        })
-                      }}>
-                        <Share2 className="h-4 w-4" />
-                      </Button>
+                    </CardContent>
+                    <CardFooter className="p-4 pt-0 flex justify-between">
                       <Button variant="outline" size="sm" onClick={() => handleViewQRCode(table)}>
                         Ver QR Code
                       </Button>
-                    </div>
-                  </div>
+                      <Button variant="ghost" size="icon" onClick={() => downloadQRCode(generateQRCodeUrl(table.id), table.number, 'download')}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </TabsContent>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>QR Code - Mesa {selectedTable?.number}</DialogTitle>
-            <DialogDescription>Escaneie este QR code para acessar o menu digital</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center py-4">
-            <div className="w-64 h-64 bg-white flex items-center justify-center rounded-lg mb-4 p-4">
-              <QRCodeSVG
-                value={selectedTable ? generateQRCodeUrl(selectedTable.id) : ''}
-                size={240}
-                level="H"
-                includeMargin={true}
-              />
-            </div>
-            <p className="text-center text-sm text-muted-foreground">
-              Este QR code redireciona para a página de pedidos da mesa {selectedTable?.number}
-            </p>
-          </div>
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="gap-1 sm:flex-1" onClick={() => selectedTable && downloadQRCode(generateQRCodeUrl(selectedTable.id), selectedTable.number, 'print')}>
-              <Printer className="h-4 w-4" />
-              Imprimir
-            </Button>
-            <Button variant="outline" className="gap-1 sm:flex-1" onClick={() => selectedTable && downloadQRCode(generateQRCodeUrl(selectedTable.id), selectedTable.number, 'download')}>
-              <Download className="h-4 w-4" />
-              Baixar
-            </Button>
-            <Button className="sm:flex-1" onClick={() => setDialogOpen(false)}>
-              Fechar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <TabsContent value="lista">
+              <Card>
+                <CardContent className="p-0">
+                  <div className="rounded-md border">
+                    <div className="grid grid-cols-3 p-4 bg-muted text-sm font-medium">
+                      <div>Mesa</div>
+                      <div>QR Code</div>
+                      <div>Ações</div>
+                    </div>
 
-      <Dialog open={customizeDialogOpen} onOpenChange={setCustomizeDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Personalizar QR Codes</DialogTitle>
-            <DialogDescription>Personalize a aparência dos QR codes do seu estabelecimento</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="cor-primaria">Cor Primária</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input id="cor-primaria" type="color" defaultValue="#000000" className="w-12 h-10 p-1" />
-                  <Input defaultValue="#000000" className="flex-1" />
+                    {tables.map((table) => (
+                      <div key={table.id} className="grid grid-cols-3 p-4 border-t items-center">
+                        <div className="font-medium">Mesa {table.number}</div>
+                        <div className="flex items-center">
+                          <div className="w-12 h-12 bg-white flex items-center justify-center rounded-md mr-2 p-1">
+                            <QRCodeSVG
+                              value={generateQRCodeUrl(table.id)}
+                              size={40}
+                              level="H"
+                              includeMargin={true}
+                            />
+                          </div>
+                          <span className="text-sm text-muted-foreground">{generateQRCodeUrl(table.id)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="icon" title="Copiar Link" onClick={() => {
+                            navigator.clipboard.writeText(generateQRCodeUrl(table.id))
+                            toast.success('Link copiado com sucesso!')
+                          }}>
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title="Compartilhar" onClick={() => {
+                            navigator.share({
+                              title: `Mesa ${table.number}`,
+                              text: `Acesse o menu digital da Mesa ${table.number}`,
+                              url: generateQRCodeUrl(table.id)
+                            })
+                          }}>
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleViewQRCode(table)}>
+                            Ver QR Code
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>QR Code - Mesa {selectedTable?.number}</DialogTitle>
+                <DialogDescription>Escaneie este QR code para acessar o menu digital</DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center py-4">
+                <div className="w-64 h-64 bg-white flex items-center justify-center rounded-lg mb-4 p-4">
+                  <QRCodeSVG
+                    value={selectedTable ? generateQRCodeUrl(selectedTable.id) : ''}
+                    size={240}
+                    level="H"
+                    includeMargin={true}
+                  />
+                </div>
+                <p className="text-center text-sm text-muted-foreground">
+                  Este QR code redireciona para a página de pedidos da mesa {selectedTable?.number}
+                </p>
+              </div>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                <Button variant="outline" className="gap-1 sm:flex-1" onClick={() => selectedTable && downloadQRCode(generateQRCodeUrl(selectedTable.id), selectedTable.number, 'print')}>
+                  <Printer className="h-4 w-4" />
+                  Imprimir
+                </Button>
+                <Button variant="outline" className="gap-1 sm:flex-1" onClick={() => selectedTable && downloadQRCode(generateQRCodeUrl(selectedTable.id), selectedTable.number, 'download')}>
+                  <Download className="h-4 w-4" />
+                  Baixar
+                </Button>
+                <Button className="sm:flex-1" onClick={() => setDialogOpen(false)}>
+                  Fechar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={customizeDialogOpen} onOpenChange={setCustomizeDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Personalizar QR Codes</DialogTitle>
+                <DialogDescription>Personalize a aparência dos QR codes do seu estabelecimento</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="cor-primaria">Cor Primária</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input id="cor-primaria" type="color" defaultValue="#000000" className="w-12 h-10 p-1" />
+                      <Input defaultValue="#000000" className="flex-1" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="cor-fundo">Cor de Fundo</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input id="cor-fundo" type="color" defaultValue="#FFFFFF" className="w-12 h-10 p-1" />
+                      <Input defaultValue="#FFFFFF" className="flex-1" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="logo">Logo (opcional)</Label>
+                  <Input id="logo" type="file" className="mt-1" />
+                </div>
+
+                <div className="flex items-center gap-4 mt-2">
+                  <div className="w-32 h-32 bg-white flex items-center justify-center rounded-md border">
+                    <QrCode className="h-20 w-20 text-black" />
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <p className="font-medium mb-1">Pré-visualização</p>
+                    <p>Seu QR code personalizado aparecerá assim para seus clientes.</p>
+                  </div>
                 </div>
               </div>
-              <div>
-                <Label htmlFor="cor-fundo">Cor de Fundo</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input id="cor-fundo" type="color" defaultValue="#FFFFFF" className="w-12 h-10 p-1" />
-                  <Input defaultValue="#FFFFFF" className="flex-1" />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="logo">Logo (opcional)</Label>
-              <Input id="logo" type="file" className="mt-1" />
-            </div>
-
-            <div className="flex items-center gap-4 mt-2">
-              <div className="w-32 h-32 bg-white flex items-center justify-center rounded-md border">
-                <QrCode className="h-20 w-20 text-black" />
-              </div>
-              <div className="text-sm text-muted-foreground">
-                <p className="font-medium mb-1">Pré-visualização</p>
-                <p>Seu QR code personalizado aparecerá assim para seus clientes.</p>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCustomizeDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={() => setCustomizeDialogOpen(false)}>Salvar Personalização</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCustomizeDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={() => setCustomizeDialogOpen(false)}>Salvar Personalização</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   )
 }
