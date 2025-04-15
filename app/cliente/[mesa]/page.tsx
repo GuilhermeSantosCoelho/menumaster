@@ -10,33 +10,19 @@ import {
   Receipt,
   ShoppingCart,
   Utensils,
-  Wifi,
+  Wifi
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { use, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DialogHeader, DialogFooter } from '@/components/ui/dialog';
+import { SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription, Sheet } from '@/components/ui/sheet';
+import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from '@radix-ui/react-dialog';
+import { Badge } from '@/components/ui/badge';
 
 type DatabaseProduct = {
   id: string;
@@ -100,6 +86,9 @@ type Order = {
   table_id: string;
   establishment_id: string;
   order_items: OrderItem[];
+  table: {
+    session_uuid: string;
+  };
 };
 
 function WiFiConnection({ ssid, password }: { ssid: string; password: string }) {
@@ -186,8 +175,12 @@ const groupOrderItems = (items: OrderItem[]): GroupedOrderItem[] => {
   return Object.values(grouped);
 };
 
-export default function ClientePedido({ params }: { params: Promise<{ mesa: string }> }) {
+export default function ClientePedido({ params, searchParams }: { 
+  params: Promise<{ mesa: string }>;
+  searchParams: Promise<{ session?: string }>;
+}) {
   const resolvedParams = use(params);
+  const resolvedSearchParams = use(searchParams);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [currentCategory, setCurrentCategory] = useState<string>('todos');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -206,17 +199,20 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
     password: '',
   });
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const router = useRouter();
 
   // Initialize Supabase client
   const supabase = createClient();
 
   useEffect(() => {
+    if (!resolvedSearchParams.session) {
+      router.push('/');
+      return;
+    }
+
     fetchTableAndProducts();
     fetchOrders();
     fetchWifiInfo();
-
-    // Set up real-time subscription for order updates
-    console.log('Setting up subscription for table:', resolvedParams.mesa);
 
     const channel = supabase
       .channel(`table-${resolvedParams.mesa}-orders`)
@@ -229,73 +225,69 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
           filter: `table_id=eq.${resolvedParams.mesa}`,
         },
         (payload) => {
-          console.log('Change received:', payload);
           fetchOrders();
         }
       )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to order changes');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('Error subscribing to order changes');
-        }
-      });
+      .subscribe();
 
     return () => {
-      console.log('Cleaning up subscription');
       supabase.removeChannel(channel);
     };
-  }, [resolvedParams.mesa]);
+  }, [resolvedParams.mesa, resolvedSearchParams.session]);
 
   const fetchTableAndProducts = async () => {
     try {
       setLoading(true);
 
-      // Get table information
       const { data: table, error: tableError } = await supabase
         .from('tables')
-        .select('number, establishment_id')
+        .select('number, session_uuid')
         .eq('id', resolvedParams.mesa)
         .single();
 
       if (tableError) throw tableError;
-      if (!table) throw new Error('Table not found');
+
+      if (table.session_uuid !== resolvedSearchParams.session) {
+        router.push('/');
+        return;
+      }
 
       setTableNumber(table.number);
 
-      // Get categories for this establishment without authentication
-      const { data: categories, error: categoriesError } = await supabase
-        .from('categories')
-        .select('id, name')
-        .eq('establishment_id', table.establishment_id)
-        .order('name', { ascending: true });
-
-      if (categoriesError) throw categoriesError;
-      setCategories((prevCategories) => [...prevCategories, ...(categories || [])]);
-
-      // Get products for this establishment
+      // Get products
       const { data: products, error: productsError } = await supabase
         .from('products')
-        .select(
-          `
+        .select(`
           *,
-          category:categories (
-            id,
+          categories (
             name
           )
-        `
-        )
-        .eq('establishment_id', table.establishment_id)
+        `)
         .eq('available', true)
-        .is('deleted_at', null);
+        .is('deleted_at', null)
+        .order('name');
 
       if (productsError) throw productsError;
 
-      setProducts(products || []);
+      setProducts(
+        products.map((product) => ({
+          ...product,
+          category: product.categories?.name || null,
+        }))
+      );
+
+      // Get categories
+      const { data: categories, error: categoriesError } = await supabase
+        .from('categories')
+        .select('id, name')
+        .order('name');
+
+      if (categoriesError) throw categoriesError;
+
+      setCategories(categories);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Erro ao carregar cardápio');
+      console.error('Error fetching table and products:', error);
+      toast.error('Erro ao carregar informações da mesa');
     } finally {
       setLoading(false);
     }
@@ -305,40 +297,41 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
     try {
       setLoadingOrders(true);
 
+      // First, verify if the session is valid
+      const { data: table, error: tableError } = await supabase
+        .from('tables')
+        .select('session_uuid')
+        .eq('id', resolvedParams.mesa)
+        .single();
+
+      if (tableError) throw tableError;
+
+      if (table.session_uuid !== resolvedSearchParams.session) {
+        router.push('/');
+        return;
+      }
+
       const { data: orders, error } = await supabase
         .from('orders')
-        .select(
-          `
+        .select(`
           *,
           order_items (
             *,
-            product:products (
-              *,
+            product:product_id (
+              id,
+              name,
               categories (
                 name
               )
             )
           )
-        `
-        )
+        `)
         .eq('table_id', resolvedParams.mesa)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Transform the orders to include the category name
-      const transformedOrders = (orders || []).map((order) => ({
-        ...order,
-        order_items: order.order_items.map((item: OrderItem) => ({
-          ...item,
-          product: {
-            ...item.product,
-            category: item.product.categories?.name || null,
-          },
-        })),
-      }));
-
-      setOrders(transformedOrders);
+      setOrders(orders || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('Erro ao carregar pedidos');
@@ -382,11 +375,11 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
       ? products
       : products.filter((p) => p.category_id === currentCategory);
 
-  const addToCart = () => {
-    if (!selectedProduct || selectedQuantity <= 0) return;
+  const addToCart = (product: Product) => {
+    if (!product || selectedQuantity <= 0) return;
 
     const existingItem = cart.findIndex(
-      (item) => item.product.id === selectedProduct.id && item.observation === observation
+      (item) => item.product.id === product.id && item.observation === observation
     );
 
     if (existingItem >= 0) {
@@ -397,7 +390,7 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
       setCart([
         ...cart,
         {
-          product: selectedProduct,
+          product,
           quantity: selectedQuantity,
           observation: observation || undefined,
         },
@@ -607,8 +600,8 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
                         <div className="flex justify-end mt-4">
                           <Button
                             onClick={() => {
-                              setSelectedProduct(product);
                               setIsDialogOpen(true);
+                              addToCart(product);
                             }}
                             className="w-full sm:w-auto"
                           >
@@ -669,29 +662,11 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
                         </div>
                         <div className="border-t pt-2 mt-2">
                           {groupedItems.map((item) => (
-                            <div key={`${item.product_id}-${item.notes || ''}`} className="py-2">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <div className="font-medium">{item.product_name}</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {item.quantity}x R$ {item.unit_price.toFixed(2)}
-                                  </div>
-                                </div>
-                                <div className="font-medium">
-                                  R$ {(item.quantity * item.unit_price).toFixed(2)}
-                                </div>
-                              </div>
-                              {item.notes && (
-                                <div className="mt-1 text-sm text-muted-foreground bg-muted/30 rounded-md px-3 py-1">
-                                  {item.notes}
-                                </div>
-                              )}
+                            <div key={`${item.product_id}-${item.notes || ''}`} className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">{item.product_name}</span>
+                              <span className="text-sm text-muted-foreground">{item.quantity}x</span>
                             </div>
                           ))}
-                        </div>
-                        <div className="border-t pt-2 flex justify-between items-center">
-                          <span className="text-sm font-medium">Total</span>
-                          <span className="font-semibold">R$ {order.total_amount.toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
@@ -699,8 +674,12 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
                 })}
               </div>
             ) : (
-              <div className="text-center py-8 bg-muted/30 rounded-lg">
-                <p className="text-muted-foreground">Nenhum pedido realizado ainda</p>
+              <div className="py-12 text-center">
+                <div className="bg-muted/30 rounded-lg p-8">
+                  <p className="text-muted-foreground text-lg">
+                    Nenhum pedido encontrado para esta mesa.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -799,7 +778,7 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
         </Sheet>
 
         {/* Cart Sheet */}
-        <Sheet>
+        <Sheet open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <SheetTrigger asChild>
             <Button
               className="fixed bottom-4 right-4 gap-2 shadow-lg rounded-full px-6"
@@ -952,60 +931,6 @@ export default function ClientePedido({ params }: { params: Promise<{ mesa: stri
           </SheetContent>
         </Sheet>
       </div>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl">{selectedProduct?.name}</DialogTitle>
-            <DialogDescription className="text-base">
-              {selectedProduct?.description}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-6 py-4">
-            <div className="flex items-center justify-between">
-              <span className="text-lg">Quantidade:</span>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setSelectedQuantity(Math.max(1, selectedQuantity - 1))}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span className="w-8 text-center text-lg">{selectedQuantity}</span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setSelectedQuantity(selectedQuantity + 1)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="observation" className="text-sm font-medium">
-                Observação (opcional):
-              </label>
-              <Input
-                id="observation"
-                placeholder="Ex: Sem cebola, sem pimenta..."
-                value={observation}
-                onChange={(e) => setObservation(e.target.value)}
-                className="w-full"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
-              Cancelar
-            </Button>
-            <Button onClick={addToCart} className="flex-1">
-              Adicionar - R${' '}
-              {selectedProduct ? (selectedProduct.price * selectedQuantity).toFixed(2) : '0.00'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -67,6 +67,7 @@ CREATE TABLE public.tables (
   capacity INTEGER NOT NULL,
   status TEXT NOT NULL DEFAULT 'FREE' CHECK (status IN ('FREE', 'OCCUPIED', 'RESERVED', 'MAINTENANCE')),
   qr_code_url TEXT,
+  session_uuid UUID DEFAULT uuid_generate_v4(),
   active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

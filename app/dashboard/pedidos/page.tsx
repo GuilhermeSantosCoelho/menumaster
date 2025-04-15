@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check, Clock, Eye, MoreHorizontal, Search, Utensils } from 'lucide-react';
+import { Check, Clock, Eye, MoreHorizontal, Search, Utensils, X } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -50,7 +52,15 @@ type Order = {
   items: OrderItem[];
   table: {
     number: number;
+    is_open: boolean;
   };
+};
+
+type TableOrders = {
+  tableNumber: number;
+  tableId: string;
+  orders: Order[];
+  totalAmount: number;
 };
 
 const getStatusColor = (status: OrderStatus) => {
@@ -95,9 +105,6 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchOrders();
 
-    // Set up real-time subscription for order updates
-    console.log('Setting up subscription for establishment orders');
-
     const createChannel = async () => {
       const {
         data: { user },
@@ -125,17 +132,9 @@ export default function OrdersPage() {
             fetchOrders();
           }
         )
-        .subscribe((status) => {
-          console.log('Subscription status:', status);
-          if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to order changes');
-          } else if (status === 'CHANNEL_ERROR') {
-            console.error('Error subscribing to order changes');
-          }
-        });
+        .subscribe();
 
       return () => {
-        console.log('Cleaning up subscription');
         supabase.removeChannel(channel);
       };
     };
@@ -160,7 +159,6 @@ export default function OrdersPage() {
 
       if (!establishment) throw new Error('Establishment not found');
 
-      // Get orders for this establishment
       const { data: orders, error } = await supabase
         .from('orders')
         .select(
@@ -203,18 +201,13 @@ export default function OrdersPage() {
         return;
       }
 
-      // @ts-ignore
       const { error: updateError } = await supabase.rpc('update_order_status', {
         p_order_id: orderId,
         p_new_status: newStatus,
       });
 
-      if (updateError) {
-        console.error('Erro ao atualizar status:', updateError);
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      // Atualizar o estado local
       setOrders(
         orders.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order))
       );
@@ -247,208 +240,227 @@ export default function OrdersPage() {
     setDialogOpen(true);
   };
 
-  const filteredOrders = orders
-    .filter((order) => statusFilter === 'all' || order.status === statusFilter)
-    .filter((order) => tableSearch === '' || order.table.number.toString().includes(tableSearch));
+  const handleCloseTable = async (tableId: string) => {
+    try {
+      const { error } = await supabase.rpc('close_table', {
+        p_table_id: tableId,
+      });
+
+      if (error) throw error;
+
+      toast.success('Mesa fechada com sucesso');
+    } catch (error) {
+      console.error('Error closing table:', error);
+      toast.error('Erro ao fechar mesa');
+    }
+  };
+
+  const groupOrdersByTable = (orders: Order[]): TableOrders[] => {
+    const tableMap = new Map<number, TableOrders>();
+
+    orders.forEach((order) => {
+      if (statusFilter !== 'all' && order.status !== statusFilter) return;
+      if (tableSearch && !order.table.number.toString().includes(tableSearch)) return;
+
+      const tableNumber = order.table.number;
+      if (!tableMap.has(tableNumber)) {
+        tableMap.set(tableNumber, {
+          tableNumber,
+          tableId: order.table_id,
+          orders: [],
+          totalAmount: 0,
+        });
+      }
+
+      const tableOrders = tableMap.get(tableNumber)!;
+      tableOrders.orders.push(order);
+      tableOrders.totalAmount += order.total_amount;
+    });
+
+    return Array.from(tableMap.values()).sort((a, b) => a.tableNumber - b.tableNumber);
+  };
+
+  const tableOrders = groupOrdersByTable(orders);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Pedidos</h1>
-          <p className="text-muted-foreground">Gerencie os pedidos do seu estabelecimento</p>
+    <div className="container mx-auto py-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Pedidos Ativos</h1>
+            <p className="text-muted-foreground">Pedidos das mesas que estão abertas</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/pedidos/historico">
+                Ver Histórico
+              </Link>
+            </Button>
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar mesa..."
+                className="pl-8"
+                value={tableSearch}
+                onChange={(e) => setTableSearch(e.target.value)}
+              />
+            </div>
+            <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+              <TabsList>
+                <TabsTrigger value="all">Todos</TabsTrigger>
+                <TabsTrigger value="PENDING">Pendentes</TabsTrigger>
+                <TabsTrigger value="PREPARING">Em preparo</TabsTrigger>
+                <TabsTrigger value="READY">Prontos</TabsTrigger>
+                <TabsTrigger value="DELIVERED">Entregues</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar mesa..."
-            value={tableSearch}
-            onChange={(e) => setTableSearch(e.target.value)}
-            className="pl-8 w-[180px]"
-          />
-        </div>
-      </div>
 
-      <Tabs defaultValue="all" onValueChange={setStatusFilter}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="all">Todos</TabsTrigger>
-          <TabsTrigger value="PENDING">Aguardando</TabsTrigger>
-          <TabsTrigger value="PREPARING">Em Preparo</TabsTrigger>
-          <TabsTrigger value="READY">Prontos</TabsTrigger>
-          <TabsTrigger value="DELIVERED">Entregues</TabsTrigger>
-          <TabsTrigger value="CANCELLED">Cancelados</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={statusFilter}>
-          <Card>
-            <CardHeader className="p-4">
-              <CardTitle className="text-xl">
-                {statusFilter === 'all'
-                  ? 'Todos os Pedidos'
-                  : getStatusText(statusFilter as OrderStatus)}
-              </CardTitle>
-              <CardDescription>
-                {loading ? 'Carregando...' : `${filteredOrders.length} pedidos encontrados`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="border-t">
-                {loading ? (
-                  <div className="py-12 text-center text-muted-foreground">
-                    Carregando pedidos...
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : tableOrders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <Utensils className="h-12 w-12 mb-4" />
+            <p className="text-lg">Nenhum pedido encontrado</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tableOrders.map((table) => (
+              <Card key={table.tableNumber} className="relative">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Mesa {table.tableNumber}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">
+                        {table.orders.length} {table.orders.length === 1 ? 'pedido' : 'pedidos'}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleCloseTable(table.tableId)}>
+                            Fechar Mesa
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                ) : filteredOrders.length === 0 ? (
-                  <div className="py-12 text-center text-muted-foreground">
-                    Nenhum pedido encontrado.
-                  </div>
-                ) : (
-                  filteredOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border-b"
-                    >
-                      <div className="flex items-center gap-4 mb-2 md:mb-0">
-                        <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center">
-                          <Utensils className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <div className="font-medium flex items-center gap-2">
-                            Mesa {order.table.number}
-                            <Badge className={`${getStatusColor(order.status)} text-white`}>
-                              {getStatusText(order.status)}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                            <Clock className="h-3 w-3" />
-                            {new Date(order.created_at).toLocaleTimeString('pt-BR', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                            <span className="text-xs">•</span>
-                            <span>R$ {order.total_amount.toFixed(2)}</span>
-                            <span className="text-xs">•</span>
-                            <span>{order.items.length} itens</span>
-                          </div>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {order.items.map((item, index) => (
-                              <span key={item.id}>
-                                {item.quantity}x {item.product.name}
-                                {index < order.items.length - 1 ? ', ' : ''}
+                  <CardDescription>
+                    Total: R$ {table.totalAmount.toFixed(2)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[300px]">
+                    <div className="space-y-4">
+                      {table.orders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Badge className={getStatusColor(order.status)}>
+                                {getStatusText(order.status)}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                {new Date(order.created_at).toLocaleTimeString()}
                               </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleViewDetails(order)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleAdvanceStatus(order.id, order.status)}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {order.status === 'PENDING' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleCancelOrder(order.id)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            {order.items.map((item) => (
+                              <div key={item.id} className="flex items-center justify-between text-sm">
+                                <span>
+                                  {item.quantity}x {item.product.name}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  R$ {(item.quantity * item.unit_price).toFixed(2)}
+                                </span>
+                              </div>
                             ))}
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1"
-                            onClick={() => handleAdvanceStatus(order.id, order.status)}
-                          >
-                            <Check className="h-4 w-4" />
-                            {order.status === 'PENDING'
-                              ? 'Preparar'
-                              : order.status === 'PREPARING'
-                              ? 'Pronto'
-                              : 'Entregar'}
-                          </Button>
-                        )}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="ml-2">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => handleViewDetails(order)}
-                              className="gap-2 cursor-pointer"
-                            >
-                              <Eye className="h-4 w-4" />
-                              Ver detalhes
-                            </DropdownMenuItem>
-                            {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleCancelOrder(order.id)}
-                                  className="gap-2 text-red-600 cursor-pointer"
-                                >
-                                  <Check className="h-4 w-4" />
-                                  Cancelar pedido
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                      ))}
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Detalhes do Pedido {selectedOrder?.id}</DialogTitle>
+            <DialogTitle>Detalhes do Pedido</DialogTitle>
             <DialogDescription>
-              Mesa {selectedOrder?.table.number} •{' '}
-              {selectedOrder?.created_at
-                ? new Date(selectedOrder.created_at).toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : ''}
+              Mesa {selectedOrder?.table.number} -{' '}
+              {selectedOrder && new Date(selectedOrder.created_at).toLocaleString()}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <h4 className="text-sm font-medium mb-2">Status</h4>
-              <Badge
-                className={`${
-                  selectedOrder?.status ? getStatusColor(selectedOrder.status) : ''
-                } text-white`}
-              >
-                {selectedOrder?.status ? getStatusText(selectedOrder.status) : ''}
-              </Badge>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium mb-2">Itens do Pedido</h4>
-              <div className="border rounded-md">
-                {selectedOrder?.items.map((item, i) => (
-                  <div
-                    key={i}
-                    className={`p-3 ${i < selectedOrder.items.length - 1 ? 'border-b' : ''}`}
-                  >
-                    <div className="flex justify-between">
-                      <div className="font-medium">
-                        {item.quantity}x {item.product.name}
-                      </div>
-                      <div>R$ {(item.unit_price * item.quantity).toFixed(2)}</div>
-                    </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              {selectedOrder?.items.map((item) => (
+                <div key={item.id} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {item.quantity}x {item.product.name}
+                    </p>
                     {item.notes && (
-                      <div className="text-sm text-muted-foreground mt-1">Obs: {item.notes}</div>
+                      <p className="text-sm text-muted-foreground">Observação: {item.notes}</p>
                     )}
                   </div>
-                ))}
-              </div>
+                  <p className="text-muted-foreground">
+                    R$ {(item.quantity * item.unit_price).toFixed(2)}
+                  </p>
+                </div>
+              ))}
             </div>
-
-            <div className="flex justify-between font-medium">
-              <div>Total</div>
-              <div>R$ {selectedOrder?.total_amount.toFixed(2)}</div>
+            <div className="flex items-center justify-between border-t pt-4">
+              <span className="font-medium">Total</span>
+              <span className="font-medium">R$ {selectedOrder?.total_amount.toFixed(2)}</span>
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => setDialogOpen(false)}>Fechar</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Fechar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

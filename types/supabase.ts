@@ -212,6 +212,7 @@ export interface Database {
           capacity: number
           status: "FREE" | "OCCUPIED" | "RESERVED" | "MAINTENANCE"
           qr_code_url: string | null
+          session_uuid: string
           active: boolean
           created_at: string
           updated_at: string
@@ -223,6 +224,7 @@ export interface Database {
           capacity: number
           status?: "FREE" | "OCCUPIED" | "RESERVED" | "MAINTENANCE"
           qr_code_url?: string | null
+          session_uuid?: string
           active?: boolean
           created_at?: string
           updated_at?: string
@@ -234,6 +236,7 @@ export interface Database {
           capacity?: number
           status?: "FREE" | "OCCUPIED" | "RESERVED" | "MAINTENANCE"
           qr_code_url?: string | null
+          session_uuid?: string
           active?: boolean
           created_at?: string
           updated_at?: string

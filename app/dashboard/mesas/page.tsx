@@ -208,7 +208,7 @@ export default function TablesPage() {
     // Get the current domain
     const protocol = window.location.protocol
     const host = window.location.host
-    return `${protocol}//${host}/cliente/${tableId}`
+    return `${protocol}//${host}/cliente/${tableId}/session`
   }
 
   const handleDownloadQRCode = () => {

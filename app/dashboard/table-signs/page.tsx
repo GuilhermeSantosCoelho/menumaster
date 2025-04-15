@@ -105,7 +105,7 @@ export default function TableSignsPage() {
             <TableSign
               establishmentName={establishment.name}
               tableNumber={table.number}
-              qrCodeUrl={`${window.location.origin}/cliente/${table.id}`}
+              qrCodeUrl={`${window.location.origin}/cliente/${table.id}/session`}
               logoUrl={establishment.logo}
             />
           </div>

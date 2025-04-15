@@ -142,6 +142,7 @@ export interface Table {
   capacity: number // Capacidade de pessoas
   status: TableStatus
   qrCodeUrl?: string // URL para o QR code
+  sessionUuid: string // UUID da sessão atual da mesa
   establishmentId: string
   establishment: Establishment
   orders: Order[] // Pedidos feitos nesta mesa
