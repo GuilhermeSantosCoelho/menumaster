@@ -38,7 +38,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirectedFrom') || '/dashboard';
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { login } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -51,13 +51,9 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      const response = await signIn(values.email, values.password);
-      if (response.success) {
-        toast.success(response.message);
-        router.push(redirectTo);
-      } else {
-        toast.error(response.message);
-      }
+      await login(values.email, values.password);
+      toast.success('Login realizado com sucesso!');
+      router.push(redirectTo);
     } catch (error) {
       console.error(error);
       toast.error('Ocorreu um erro ao fazer login.');

@@ -1,75 +1,60 @@
-import { getSupabaseBrowserClient } from "@/lib/supabase"
-import type { Database } from "@/types/supabase"
+import { User } from '@/types/entities';
+import { mockUsers } from '@/lib/mocks/data';
 
-export type User = Database["public"]["Tables"]["users"]["Row"]
-export type UpdateUser = Database["public"]["Tables"]["users"]["Update"]
+class UserService {
+  private users = [...mockUsers];
 
-export const UserService = {
-  async getCurrentUser(): Promise<User | null> {
-    const supabase = getSupabaseBrowserClient()
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) return null
-
-    const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single()
-
-    if (error) {
-      console.error("Error fetching current user:", error)
-      return null
+  async getUserProfile(userId: string): Promise<User> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const user = this.users.find(u => u.id === userId);
+    if (!user) {
+      throw new Error('User not found');
     }
 
-    return data
-  },
+    return user;
+  }
 
-  async updateUser(id: string, userData: UpdateUser): Promise<User> {
-    const supabase = getSupabaseBrowserClient()
+  async updateUserProfile(userId: string, data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  }): Promise<User> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    const { data, error } = await supabase.from("users").update(userData).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error updating user:", error)
-      throw error
+    const index = this.users.findIndex(u => u.id === userId);
+    if (index === -1) {
+      throw new Error('User not found');
     }
 
-    return data
-  },
+    const updatedUser = {
+      ...this.users[index],
+      name: data.name || this.users[index].name,
+      email: data.email || this.users[index].email,
+      phone: data.phone || this.users[index].phone,
+      updatedAt: new Date(),
+    };
 
-  async updateEmail(email: string): Promise<void> {
-    const supabase = getSupabaseBrowserClient()
+    this.users[index] = updatedUser;
+    return updatedUser;
+  }
 
-    const { error } = await supabase.auth.updateUser({ email })
+  async updatePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (error) {
-      console.error("Error updating email:", error)
-      throw error
+    const user = this.users.find(u => u.id === userId);
+    if (!user) {
+      throw new Error('User not found');
     }
-  },
 
-  async updatePassword(password: string): Promise<void> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { error } = await supabase.auth.updateUser({ password })
-
-    if (error) {
-      console.error("Error updating password:", error)
-      throw error
-    }
-  },
-
-  async resetPassword(email: string): Promise<void> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-
-    if (error) {
-      console.error("Error resetting password:", error)
-      throw error
-    }
-  },
+    // In a real application, you would verify the current password hash
+    // For mock data, we'll just update the password
+    user.password = newPassword; // In a real app, this would be hashed
+    user.updatedAt = new Date();
+  }
 }
 
+export const userService = new UserService(); 

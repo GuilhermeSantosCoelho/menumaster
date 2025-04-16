@@ -6,8 +6,9 @@ import { Paintbrush, Save, UploadCloud } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
+import { useEstablishment } from '@/components/establishment-context';
+import { settingsService } from '@/lib/services/settings-service';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -56,10 +57,10 @@ const temaFormSchema = z.object({
 });
 
 export default function ConfiguracoesPage() {
+  const { currentEstablishment } = useEstablishment();
   const [logo, setLogo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   // Form para dados do perfil
   const perfilForm = useForm<z.infer<typeof perfilFormSchema>>({
@@ -82,43 +83,31 @@ export default function ConfiguracoesPage() {
   });
 
   useEffect(() => {
-    fetchEstablishmentData();
-  }, []);
+    if (currentEstablishment) {
+      fetchEstablishmentData();
+    }
+  }, [currentEstablishment]);
 
   const fetchEstablishmentData = async () => {
     try {
       setLoading(true);
-
-      // Get the current user's establishment
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { data: establishment, error } = await supabase
-        .from('establishments')
-        .select('*')
-        .eq('owner_id', user.id)
-        .single();
-
-      if (error) throw error;
-      if (!establishment) throw new Error('No establishment found');
+      const settings = await settingsService.getEstablishmentSettings(currentEstablishment!.id);
 
       // Set form values
       perfilForm.reset({
-        name: establishment.name || '',
-        address: establishment.address || '',
-        phone: establishment.phone || '',
-        description: establishment.description || '',
+        name: settings.name || '',
+        address: settings.address || '',
+        phone: settings.phone || '',
+        description: settings.description || '',
       });
 
       temaForm.reset({
-        primary_color: establishment.primary_color || '#0f172a',
-        secondary_color: establishment.secondary_color || '#f97316',
+        primary_color: settings.primary_color || '#0f172a',
+        secondary_color: settings.secondary_color || '#f97316',
       });
 
-      if (establishment.logo) {
-        setLogo(establishment.logo);
+      if (settings.logo) {
+        setLogo(settings.logo);
       }
     } catch (error) {
       console.error('Error fetching establishment data:', error);
@@ -131,25 +120,12 @@ export default function ConfiguracoesPage() {
   const onSubmitPerfil = async (data: z.infer<typeof perfilFormSchema>) => {
     try {
       setSaving(true);
-
-      // Get the current user's establishment
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { error } = await supabase
-        .from('establishments')
-        .update({
-          name: data.name,
-          address: data.address,
-          phone: data.phone,
-          description: data.description,
-        })
-        .eq('owner_id', user.id);
-
-      if (error) throw error;
-
+      await settingsService.updateEstablishmentSettings(currentEstablishment!.id, {
+        name: data.name,
+        address: data.address,
+        phone: data.phone,
+        description: data.description,
+      });
       toast.success('Dados do estabelecimento atualizados com sucesso');
     } catch (error) {
       console.error('Error updating establishment:', error);
@@ -162,23 +138,10 @@ export default function ConfiguracoesPage() {
   const onSubmitTema = async (data: z.infer<typeof temaFormSchema>) => {
     try {
       setSaving(true);
-
-      // Get the current user's establishment
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { error } = await supabase
-        .from('establishments')
-        .update({
-          primary_color: data.primary_color,
-          secondary_color: data.secondary_color,
-        })
-        .eq('owner_id', user.id);
-
-      if (error) throw error;
-
+      await settingsService.updateEstablishmentSettings(currentEstablishment!.id, {
+        primary_color: data.primary_color,
+        secondary_color: data.secondary_color,
+      });
       toast.success('Tema atualizado com sucesso');
     } catch (error) {
       console.error('Error updating theme:', error);
@@ -195,46 +158,15 @@ export default function ConfiguracoesPage() {
 
       setSaving(true);
 
-      // Get the current user's establishment
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      // In a real application, you would upload the file to a storage service
+      // For mock data, we'll just create a fake URL
+      const fakeLogoUrl = `https://example.com/logos/${file.name}`;
 
-      // Create a unique file path
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      await settingsService.updateEstablishmentSettings(currentEstablishment!.id, {
+        logo: fakeLogoUrl,
+      });
 
-      // Upload the file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('establishmentlogos')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw uploadError;
-      }
-
-      // Get the public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('establishmentlogos').getPublicUrl(fileName);
-
-      // Update the establishment with the new logo URL
-      const { error: updateError } = await supabase
-        .from('establishments')
-        .update({ logo: publicUrl })
-        .eq('owner_id', user.id);
-
-      if (updateError) {
-        console.error('Update error:', updateError);
-        throw updateError;
-      }
-
-      setLogo(publicUrl);
+      setLogo(fakeLogoUrl);
       toast.success('Logo atualizada com sucesso');
     } catch (error) {
       console.error('Error uploading logo:', error);

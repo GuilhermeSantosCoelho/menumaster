@@ -1,84 +1,79 @@
-'use client';
+"use client"
 
-import type React from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { User } from '@/types/entities';
+import { authService } from '@/lib/services/auth-service';
 
-import { useRouter } from 'next/navigation';
-import { useState, useEffect, createContext, useContext } from 'react';
-import type { User } from '@supabase/supabase-js';
-import { login } from './use-login';
-import { createClient } from '@/utils/supabase/client';
-
-type AuthContextType = {
+interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  // signUp: (
-  //   email: string,
-  //   password: string,
-  //   name: string
-  // ) => Promise<{
-  //   error: Error | null;
-  //   data: { user: User | null } | null;
-  // }>;
-  signOut: () => Promise<void>;
-};
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  signUp: (userData: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'establishments'>) => Promise<void>;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const supabase = createClient();
 
-  const signIn = async (email: string, password: string) => {
+  useEffect(() => {
+    checkUser();
+  }, []);
+
+  async function checkUser() {
     try {
-      setLoading(true);
-      const response = await login({ email, password });
-      setLoading(false);
-      return response;
+      const user = await authService.getCurrentUser();
+      setUser(user);
     } catch (error) {
+      console.error('Error checking user:', error);
+    } finally {
       setLoading(false);
+    }
+  }
+
+  async function login(email: string, password: string) {
+    try {
+      const { user, error } = await authService.login({ email, password });
+      if (error) throw new Error(error);
+      setUser(user);
+    } catch (error) {
+      console.error('Error logging in:', error);
       throw error;
     }
+  }
+
+  async function logout() {
+    try {
+      await authService.logout();
+      setUser(null);
+    } catch (error) {
+      console.error('Error logging out:', error);
+      throw error;
+    }
+  }
+
+  async function signUp(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'establishments'>) {
+    try {
+      const { user, error } = await authService.signUp(userData);
+      if (error) throw new Error(error);
+      setUser(user);
+    } catch (error) {
+      console.error('Error signing up:', error);
+      throw error;
+    }
+  }
+
+  const value = {
+    user,
+    loading,
+    login,
+    logout,
+    signUp
   };
 
-  // const signUp = async (email: string, password: string, name: string) => {
-  //   setLoading(true);
-  //   const response = await supabase.auth.signUp({
-  //     email,
-  //     password,
-  //     options: {
-  //       data: {
-  //         name,
-  //       },
-  //     },
-  //   });
-
-  //   // Se o registro for bem-sucedido, crie o perfil do usuário
-  //   if (response.data.user) {
-  //     await supabase.from('users').insert({
-  //       id: response.data.user.id,
-  //       name,
-  //       email,
-  //       role: 'OWNER',
-  //     });
-  //   }
-
-  //   setLoading(false);
-  //   return response;
-  // };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
@@ -87,4 +82,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+} 

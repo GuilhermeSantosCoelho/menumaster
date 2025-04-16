@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { User, Lock, Mail, Phone } from "lucide-react"
-import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
+import { useAuth } from "@/hooks/use-auth"
+import { userService } from "@/lib/services/user-service"
 
 export default function ContaPage() {
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -19,59 +21,35 @@ export default function ContaPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const supabase = createClient();
 
   useEffect(() => {
-    fetchUserData();
-  }, []);
+    if (user) {
+      fetchUserData();
+    }
+  }, [user]);
 
   const fetchUserData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        // Get user profile data from the users table
-        const { data, error } = await supabase
-          .from('users')
-          .select('name, email, phone')
-          .eq('id', user.id)
-          .single();
-          
-        if (error) throw error;
-        
-        if (data) {
-          setName(data.name || '');
-          setEmail(data.email || '');
-          setPhone(data.phone || '');
-        }
-      }
+      const userData = await userService.getUserProfile(user!.id);
+      setName(userData.name || '');
+      setEmail(userData.email || '');
+      setPhone(userData.phone || '');
     } catch (error) {
       console.error('Error fetching user data:', error);
       toast.error("Erro ao carregar dados do usuário");
     }
   };
 
-  const updateProfile = async () => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
     try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error("Usuário não autenticado");
-      }
-      
-      // Update user table
-      const { error } = await supabase
-        .from('users')
-        .update({
-          name,
-          email,
-          phone,
-        })
-        .eq('id', user.id);
-        
-      if (error) throw error;
-      
+      await userService.updateUserProfile(user!.id, {
+        name,
+        email,
+        phone,
+      });
       toast.success("Perfil atualizado com sucesso");
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -81,22 +59,20 @@ export default function ContaPage() {
     }
   };
 
-  const updatePassword = async () => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordLoading(true);
+
     try {
       if (newPassword !== confirmPassword) {
-        toast.error("As senhas não conferem");
+        toast.error("As senhas não coincidem");
         return;
       }
-      
-      setPasswordLoading(true);
-      
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-      
-      if (error) throw error;
-      
+
+      await userService.updatePassword(user!.id, currentPassword, newPassword);
       toast.success("Senha atualizada com sucesso");
+      
+      // Clear password fields
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -128,59 +104,57 @@ export default function ContaPage() {
               <CardDescription>Atualize suas informações pessoais</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nome">Nome Completo</Label>
-                <div className="flex">
-                  <div className="flex items-center px-3 border rounded-l-md bg-muted">
-                    <User className="h-4 w-4 text-muted-foreground" />
+              <form onSubmit={handleUpdateProfile} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome Completo</Label>
+                  <div className="flex">
+                    <div className="flex items-center px-3 border rounded-l-md bg-muted">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <Input 
+                      id="nome" 
+                      value={name} 
+                      onChange={(e) => setName(e.target.value)}
+                      className="rounded-l-none" 
+                    />
                   </div>
-                  <Input 
-                    id="nome" 
-                    value={name} 
-                    onChange={(e) => setName(e.target.value)}
-                    className="rounded-l-none" 
-                  />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <div className="flex">
-                  <div className="flex items-center px-3 border rounded-l-md bg-muted">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <div className="flex">
+                    <div className="flex items-center px-3 border rounded-l-md bg-muted">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="rounded-l-none" 
+                    />
                   </div>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="rounded-l-none" 
-                  />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="telefone">Telefone</Label>
-                <div className="flex">
-                  <div className="flex items-center px-3 border rounded-l-md bg-muted">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefone</Label>
+                  <div className="flex">
+                    <div className="flex items-center px-3 border rounded-l-md bg-muted">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <Input 
+                      id="phone" 
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="rounded-l-none" 
+                    />
                   </div>
-                  <Input 
-                    id="telefone" 
-                    value={phone} 
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="rounded-l-none" 
-                  />
                 </div>
-              </div>
 
-              <Button 
-                className="w-full" 
-                onClick={updateProfile}
-                disabled={loading}
-              >
-                {loading ? "Salvando..." : "Salvar Alterações"}
-              </Button>
+                <Button type="submit" disabled={loading} className="w-full">
+                  {loading ? "Salvando..." : "Salvar Alterações"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>
@@ -189,69 +163,67 @@ export default function ContaPage() {
           <Card>
             <CardHeader>
               <CardTitle>Alterar Senha</CardTitle>
-              <CardDescription>Atualize sua senha para manter sua conta segura</CardDescription>
+              <CardDescription>Atualize sua senha de acesso</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="senha-atual">Senha Atual</Label>
-                <div className="flex">
-                  <div className="flex items-center px-3 border rounded-l-md bg-muted">
-                    <Lock className="h-4 w-4 text-muted-foreground" />
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="current-password">Senha Atual</Label>
+                  <div className="flex">
+                    <div className="flex items-center px-3 border rounded-l-md bg-muted">
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <Input 
+                      id="current-password" 
+                      type="password" 
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="rounded-l-none" 
+                    />
                   </div>
-                  <Input 
-                    id="senha-atual" 
-                    type="password" 
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="rounded-l-none" 
-                  />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="nova-senha">Nova Senha</Label>
-                <div className="flex">
-                  <div className="flex items-center px-3 border rounded-l-md bg-muted">
-                    <Lock className="h-4 w-4 text-muted-foreground" />
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">Nova Senha</Label>
+                  <div className="flex">
+                    <div className="flex items-center px-3 border rounded-l-md bg-muted">
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <Input 
+                      id="new-password" 
+                      type="password" 
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="rounded-l-none" 
+                    />
                   </div>
-                  <Input 
-                    id="nova-senha" 
-                    type="password" 
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="rounded-l-none" 
-                  />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmar-senha">Confirmar Nova Senha</Label>
-                <div className="flex">
-                  <div className="flex items-center px-3 border rounded-l-md bg-muted">
-                    <Lock className="h-4 w-4 text-muted-foreground" />
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirmar Nova Senha</Label>
+                  <div className="flex">
+                    <div className="flex items-center px-3 border rounded-l-md bg-muted">
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <Input 
+                      id="confirm-password" 
+                      type="password" 
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="rounded-l-none" 
+                    />
                   </div>
-                  <Input 
-                    id="confirmar-senha" 
-                    type="password" 
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="rounded-l-none" 
-                  />
                 </div>
-              </div>
 
-              <Button 
-                className="w-full" 
-                onClick={updatePassword}
-                disabled={passwordLoading || !newPassword || !confirmPassword || newPassword !== confirmPassword}
-              >
-                {passwordLoading ? "Alterando..." : "Alterar Senha"}
-              </Button>
+                <Button type="submit" disabled={passwordLoading} className="w-full">
+                  {passwordLoading ? "Alterando..." : "Alterar Senha"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
 

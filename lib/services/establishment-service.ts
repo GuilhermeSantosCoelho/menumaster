@@ -1,104 +1,64 @@
-import type { Database } from "@/types/supabase"
-import { createClient } from "@/utils/supabase/client"
-export type Establishment = Database["public"]["Tables"]["establishments"]["Row"]
-export type NewEstablishment = Database["public"]["Tables"]["establishments"]["Insert"]
-export type UpdateEstablishment = Database["public"]["Tables"]["establishments"]["Update"]
+import { Establishment } from '@/types/entities';
+import { mockEstablishments } from '../mocks/data';
 
-export const EstablishmentService = {
-  async getUserEstablishments(userId: string): Promise<Establishment[]> {
-    const supabase = createClient()
+class EstablishmentService {
+  async getEstablishments(): Promise<Establishment[]> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return mockEstablishments;
+  }
 
-    // Get establishments where user is owner
-    const { data: ownedEstablishments, error: ownedError } = await supabase
-      .from("establishments")
-      .select("*")
-      .eq("owner_id", userId)
-      .order("name")
+  async getEstablishmentById(id: string): Promise<Establishment | null> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return mockEstablishments.find(e => e.id === id) || null;
+  }
 
-    if (ownedError) {
-      console.error("Error fetching owned establishments:", ownedError)
-      throw ownedError
-    }
+  async createEstablishment(establishment: Omit<Establishment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Establishment> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Get establishments where user is staff
-    const { data: staffEstablishments, error: staffError } = await supabase
-      .from("establishment_staff")
-      .select("establishments(*)")
-      .eq("user_id", userId)
+    const newEstablishment: Establishment = {
+      ...establishment,
+      id: (mockEstablishments.length + 1).toString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      products: [],
+      categories: [],
+      tables: [],
+      orders: []
+    };
 
-    if (staffError) {
-      console.error("Error fetching staff establishments:", staffError)
-      throw staffError
-    }
+    mockEstablishments.push(newEstablishment);
+    return newEstablishment;
+  }
 
-    // Combine and return unique establishments
-    const staffEstablishmentsData = staffEstablishments.map((item) => item.establishments) as Establishment[]
+  async updateEstablishment(id: string, establishment: Partial<Establishment>): Promise<Establishment | null> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    return [...(ownedEstablishments || []), ...staffEstablishmentsData]
-  },
+    const index = mockEstablishments.findIndex(e => e.id === id);
+    if (index === -1) return null;
 
-  async getEstablishment(id: string): Promise<Establishment | null> {
-    const supabase = createClient()
+    mockEstablishments[index] = {
+      ...mockEstablishments[index],
+      ...establishment,
+      updatedAt: new Date()
+    };
 
-    const { data, error } = await supabase.from("establishments").select("*").eq("id", id).single()
+    return mockEstablishments[index];
+  }
 
-    if (error) {
-      console.error("Error fetching establishment:", error)
-      throw error
-    }
+  async deleteEstablishment(id: string): Promise<boolean> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    return data
-  },
+    const index = mockEstablishments.findIndex(e => e.id === id);
+    if (index === -1) return false;
 
-  async createEstablishment(establishment: NewEstablishment): Promise<Establishment> {
-    const supabase = createClient()
-
-    const { data, error } = await supabase.from("establishments").insert(establishment).select().single()
-
-    if (error) {
-      console.error("Error creating establishment:", error)
-      throw error
-    }
-
-    return data
-  },
-
-  async updateEstablishment(id: string, establishment: UpdateEstablishment): Promise<Establishment> {
-    const supabase = createClient()
-
-    const { data, error } = await supabase.from("establishments").update(establishment).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error updating establishment:", error)
-      throw error
-    }
-
-    return data
-  },
-
-  async uploadLogo(establishmentId: string, file: File): Promise<string> {
-    const supabase = createClient()
-
-    // Upload to storage
-    const { data, error } = await supabase.storage.from("logos").upload(`${establishmentId}/${file.name}`, file, {
-      cacheControl: "3600",
-      upsert: true,
-    })
-
-    if (error) {
-      console.error("Error uploading logo:", error)
-      throw error
-    }
-
-    // Get public URL
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("logos").getPublicUrl(data.path)
-
-    // Update establishment with logo URL
-    await this.updateEstablishment(establishmentId, { logo: publicUrl })
-
-    return publicUrl
-  },
+    mockEstablishments.splice(index, 1);
+    return true;
+  }
 }
 
+export const establishmentService = new EstablishmentService(); 

@@ -37,15 +37,6 @@ export enum InvoiceStatus {
 }
 
 /**
- * Tipos de planos de assinatura
- */
-export enum SubscriptionPlan {
-  BASIC = "BASIC", // Plano Básico
-  PROFESSIONAL = "PROFESSIONAL", // Plano Profissional
-  PREMIUM = "PREMIUM", // Plano Premium
-}
-
-/**
  * Tipos de pagamento
  */
 export enum PaymentMethod {
@@ -85,6 +76,8 @@ export interface Establishment {
   logo?: string // URL para o logo
   primaryColor?: string // Cor primária para personalização
   secondaryColor?: string // Cor secundária para personalização
+  wifiSsid?: string // Nome da rede WiFi
+  wifiPassword?: string // Senha da rede WiFi
   createdAt: Date
   updatedAt: Date
   ownerId: string // Referência ao usuário proprietário
@@ -143,6 +136,7 @@ export interface Table {
   status: TableStatus
   qrCodeUrl?: string // URL para o QR code
   sessionUuid: string // UUID da sessão atual da mesa
+  closedAt?: Date // Data de encerramento da sessão atual
   establishmentId: string
   establishment: Establishment
   orders: Order[] // Pedidos feitos nesta mesa
@@ -156,6 +150,7 @@ export interface Table {
  */
 export interface Order {
   id: string
+  sessionUuid: string
   tableId: string
   table: Table
   establishmentId: string
@@ -196,7 +191,6 @@ export interface Subscription {
   id: string
   establishmentId: string
   establishment: Establishment
-  plan: SubscriptionPlan
   startDate: Date
   endDate?: Date
   active: boolean
@@ -235,60 +229,6 @@ export interface QRCodeSettings {
   primaryColor?: string // Cor do QR code
   backgroundColor?: string // Cor de fundo
   logoUrl?: string // URL para o logo no centro do QR code
-  createdAt: Date
-  updatedAt: Date
-}
-
-/**
- * Relatório de vendas
- */
-export interface SalesReport {
-  id: string
-  establishmentId: string
-  establishment: Establishment
-  startDate: Date
-  endDate: Date
-  totalSales: number
-  totalOrders: number
-  averageTicket: number // Ticket médio
-  topProducts: {
-    productId: string
-    productName: string
-    quantity: number
-    revenue: number
-  }[]
-  salesByDay: {
-    date: Date
-    sales: number
-    orders: number
-  }[]
-  createdAt: Date
-}
-
-/**
- * Notificação
- */
-export interface Notification {
-  id: string
-  userId: string
-  user: User
-  title: string
-  message: string
-  type: "INFO" | "WARNING" | "ERROR" | "SUCCESS"
-  read: boolean
-  createdAt: Date
-}
-
-/**
- * Divisão de conta
- */
-export interface BillSplit {
-  id: string
-  orderId: string
-  order: Order
-  numberOfPeople: number
-  amountPerPerson: number
-  status: "PENDING" | "COMPLETED"
   createdAt: Date
   updatedAt: Date
 }

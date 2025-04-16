@@ -1,107 +1,97 @@
-import { getSupabaseBrowserClient } from "@/lib/supabase"
-import type { Database } from "@/types/supabase"
+import { Product } from "@/types/entities"
+import { mockProducts } from "@/lib/mocks/data"
 
-export type Product = Database["public"]["Tables"]["products"]["Row"]
-export type NewProduct = Database["public"]["Tables"]["products"]["Insert"]
-export type UpdateProduct = Database["public"]["Tables"]["products"]["Update"]
+class ProductService {
+  private products: Product[] = mockProducts
 
-export const ProductService = {
   async getProducts(establishmentId: string): Promise<Product[]> {
-    const supabase = getSupabaseBrowserClient()
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500))
+    return this.products.filter(p => p.establishment.id === establishmentId)
+  }
 
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("establishment_id", establishmentId)
-      .order("name")
+  async getProductById(id: string): Promise<Product> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500))
+    const product = this.products.find(p => p.id === id)
+    if (!product) throw new Error("Product not found")
+    return product
+  }
 
-    if (error) {
-      console.error("Error fetching products:", error)
-      throw error
+  async createProduct(data: {
+    name: string
+    description: string
+    price: number
+    categoryId: string
+    available: boolean
+    establishmentId: string
+  }): Promise<Product> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    const newProduct: Product = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: data.name,
+      description: data.description,
+      price: data.price,
+      categoryId: data.categoryId,
+      available: data.available,
+      establishmentId: data.establishmentId,
+      establishment: { id: data.establishmentId } as any,
+      orderItems: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
 
-    return data || []
-  },
+    this.products.push(newProduct)
+    return newProduct
+  }
 
-  async getProductsByCategory(establishmentId: string, categoryId: string): Promise<Product[]> {
-    const supabase = getSupabaseBrowserClient()
+  async updateProduct(id: string, data: {
+    name: string
+    description: string
+    price: number
+    categoryId: string
+    available: boolean
+  }): Promise<Product> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("establishment_id", establishmentId)
-      .eq("category_id", categoryId)
-      .order("name")
+    const index = this.products.findIndex(p => p.id === id)
+    if (index === -1) throw new Error("Product not found")
 
-    if (error) {
-      console.error("Error fetching products by category:", error)
-      throw error
+    const updatedProduct = {
+      ...this.products[index],
+      ...data,
+      updatedAt: new Date(),
     }
 
-    return data || []
-  },
-
-  async getProduct(id: string): Promise<Product | null> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("products").select("*").eq("id", id).single()
-
-    if (error) {
-      console.error("Error fetching product:", error)
-      throw error
-    }
-
-    return data
-  },
-
-  async createProduct(product: NewProduct): Promise<Product> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("products").insert(product).select().single()
-
-    if (error) {
-      console.error("Error creating product:", error)
-      throw error
-    }
-
-    return data
-  },
-
-  async updateProduct(id: string, product: UpdateProduct): Promise<Product> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("products").update(product).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error updating product:", error)
-      throw error
-    }
-
-    return data
-  },
+    this.products[index] = updatedProduct
+    return updatedProduct
+  }
 
   async deleteProduct(id: string): Promise<void> {
-    const supabase = getSupabaseBrowserClient()
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500))
+    this.products = this.products.filter(p => p.id !== id)
+  }
 
-    const { error } = await supabase.from("products").delete().eq("id", id)
+  async toggleAvailability(id: string, available: boolean): Promise<Product> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-    if (error) {
-      console.error("Error deleting product:", error)
-      throw error
-    }
-  },
+    const index = this.products.findIndex(p => p.id === id)
+    if (index === -1) throw new Error("Product not found")
 
-  async toggleProductAvailability(id: string, available: boolean): Promise<Product> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("products").update({ available }).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error toggling product availability:", error)
-      throw error
+    const updatedProduct = {
+      ...this.products[index],
+      available,
+      updatedAt: new Date(),
     }
 
-    return data
-  },
+    this.products[index] = updatedProduct
+    return updatedProduct
+  }
 }
 
+export const productService = new ProductService() 

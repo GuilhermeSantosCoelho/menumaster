@@ -1,294 +1,226 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Edit, MoreHorizontal, Plus, Trash, Tags } from "lucide-react"
-import { createClient } from "@/utils/supabase/client"
-import { toast } from "sonner"
-
+import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-
-type Category = {
-  id: string
-  name: string
-  description: string | null
-  created_at: string
-  updated_at: string
-  establishment_id: string
-}
+import { Textarea } from "@/components/ui/textarea"
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react"
+import { Category } from "@/types/entities"
+import { categoryService } from "@/lib/services/category-service"
+import { useEstablishment } from "@/components/establishment-context"
 
 export default function CategoriesPage() {
+  const { toast } = useToast()
+  const { currentEstablishment } = useEstablishment()
   const [categories, setCategories] = useState<Category[]>([])
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [openDialog, setOpenDialog] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const supabase = createClient()
+  const [isAddingCategory, setIsAddingCategory] = useState(false)
+  const [newCategory, setNewCategory] = useState({ name: '', description: '' })
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
 
   useEffect(() => {
-    fetchCategories()
-  }, [])
+    if (currentEstablishment) {
+      loadCategories()
+    }
+  }, [currentEstablishment])
 
-  const fetchCategories = async () => {
+  const loadCategories = async () => {
     try {
       setLoading(true)
-      
-      // Get the current user's establishment
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
-
-      const { data: establishment } = await supabase
-        .from('establishments')
-        .select('id')
-        .eq('owner_id', user.id)
-        .single()
-      
-      if (!establishment) throw new Error("No establishment found")
-
-      // Get categories for this establishment
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('establishment_id', establishment.id)
-        .order('name', { ascending: true })
-
-      if (error) throw error
-
-      setCategories(data || [])
+      const data = await categoryService.getCategories(currentEstablishment!.id)
+      setCategories(data)
     } catch (error) {
-      console.error('Error fetching categories:', error)
-      toast.error("Erro ao carregar categorias")
+      toast({
+        title: 'Erro ao carregar categorias',
+        description: 'Não foi possível carregar as categorias. Tente novamente.',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAddCategory = async (formData: HTMLFormElement) => {
+  const handleAddCategory = async () => {
+    if (!newCategory.name.trim()) {
+      toast({
+        title: 'Nome obrigatório',
+        description: 'O nome da categoria é obrigatório.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     try {
-      setSaving(true)
+      setIsAddingCategory(true)
+      await categoryService.createCategory({
+        name: newCategory.name,
+        description: newCategory.description,
+        establishmentId: currentEstablishment!.id,
+      })
       
-      // Get user's establishment
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
-
-      const { data: establishment } = await supabase
-        .from('establishments')
-        .select('id')
-        .eq('owner_id', user.id)
-        .single()
+      setNewCategory({ name: '', description: '' })
+      await loadCategories()
       
-      if (!establishment) throw new Error("No establishment found")
-
-      const form = new FormData(formData)
-      const categoryData = {
-        name: form.get('name') as string,
-        description: form.get('description') as string,
-        establishment_id: establishment.id
-      }
-
-      let savedCategory;
-      
-      if (editingCategory) {
-        const { data, error } = await supabase
-          .from('categories')
-          .update(categoryData)
-          .eq('id', editingCategory.id)
-          .select()
-          .single()
-
-        if (error) throw error
-        savedCategory = data
-        toast.success("Categoria atualizada com sucesso")
-      } else {
-        const { data, error } = await supabase
-          .from('categories')
-          .insert(categoryData)
-          .select()
-          .single()
-
-        if (error) throw error
-        savedCategory = data
-        toast.success("Categoria adicionada com sucesso")
-      }
-
-      setCategories(categories => categories.map(c => 
-        c.id === savedCategory.id ? savedCategory : c
-      ))
-
-      setOpenDialog(false)
-      setEditingCategory(null)
-      fetchCategories() // Refresh all categories
+      toast({
+        title: 'Categoria criada',
+        description: 'A categoria foi criada com sucesso.',
+      })
     } catch (error) {
-      console.error('Error saving category:', error)
-      toast.error("Erro ao salvar categoria")
+      toast({
+        title: 'Erro ao criar categoria',
+        description: 'Não foi possível criar a categoria. Tente novamente.',
+        variant: 'destructive',
+      })
     } finally {
-      setSaving(false)
+      setIsAddingCategory(false)
+    }
+  }
+
+  const handleEditCategory = async (category: Category) => {
+    try {
+      setEditingCategory(category)
+      await categoryService.updateCategory(category.id, category)
+      await loadCategories()
+      
+      toast({
+        title: 'Categoria atualizada',
+        description: 'A categoria foi atualizada com sucesso.',
+      })
+    } catch (error) {
+      toast({
+        title: 'Erro ao atualizar categoria',
+        description: 'Não foi possível atualizar a categoria. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setEditingCategory(null)
     }
   }
 
   const handleDeleteCategory = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-
-      setCategories(categories.filter((c) => c.id !== id))
-      toast.success("Categoria removida com sucesso")
+      await categoryService.deleteCategory(id)
+      await loadCategories()
+      
+      toast({
+        title: 'Categoria excluída',
+        description: 'A categoria foi excluída com sucesso.',
+      })
     } catch (error) {
-      console.error('Error deleting category:', error)
-      toast.error("Erro ao remover categoria")
+      toast({
+        title: 'Erro ao excluir categoria',
+        description: 'Não foi possível excluir a categoria. Tente novamente.',
+        variant: 'destructive',
+      })
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Categorias</h1>
-          <p className="text-muted-foreground">Gerencie as categorias do seu cardápio</p>
-        </div>
-        <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Categorias</h1>
+        <Dialog>
           <DialogTrigger asChild>
-            <Button className="gap-1">
-              <Plus className="h-4 w-4" />
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
               Nova Categoria
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingCategory ? "Editar Categoria" : "Adicionar Nova Categoria"}</DialogTitle>
-              <DialogDescription>Preencha os dados da categoria para adicioná-la ao cardápio</DialogDescription>
+              <DialogTitle>Nova Categoria</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => {
-              e.preventDefault()
-              handleAddCategory(e.currentTarget)
-            }}>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Nome</Label>
-                  <Input 
-                    id="name" 
-                    name="name"
-                    placeholder="Ex: Lanches" 
-                    defaultValue={editingCategory?.name || ""} 
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="description">Descrição (opcional)</Label>
-                  <Input
-                    id="description"
-                    name="description"
-                    placeholder="Ex: Sanduíches, hambúrgueres e outros lanches"
-                    defaultValue={editingCategory?.description || ""}
-                  />
-                </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Nome</Label>
+                <Input
+                  id="name"
+                  value={newCategory.name}
+                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                  placeholder="Nome da categoria"
+                />
               </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setOpenDialog(false)
-                    setEditingCategory(null)
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? "Salvando..." : (editingCategory ? "Salvar" : "Adicionar")}
-                </Button>
-              </DialogFooter>
-            </form>
+              <div>
+                <Label htmlFor="description">Descrição</Label>
+                <Textarea
+                  id="description"
+                  value={newCategory.description}
+                  onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                  placeholder="Descrição da categoria"
+                />
+              </div>
+              <Button
+                onClick={handleAddCategory}
+                disabled={isAddingCategory}
+                className="w-full"
+              >
+                {isAddingCategory ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  'Criar Categoria'
+                )}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
 
       <Card>
-        <CardHeader className="p-4">
-          <CardTitle className="text-xl">Categorias do Cardápio</CardTitle>
-          <CardDescription>
-            {loading ? "Carregando..." : `${categories.length} categorias encontradas`}
-          </CardDescription>
+        <CardHeader>
+          <CardTitle>Lista de Categorias</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="border-t">
-            {loading ? (
-              <div className="py-12 text-center text-muted-foreground">Carregando categorias...</div>
-            ) : categories.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground">Nenhuma categoria encontrada.</div>
-            ) : (
-              categories.map((category) => (
-                <div key={category.id} className="flex items-center justify-between p-4 border-b">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center">
-                      <Tags className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <div className="font-medium">{category.name}</div>
-                      {category.description && (
-                        <div className="text-sm text-muted-foreground mt-1">
-                          {category.description}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="ml-2">
-                          <MoreHorizontal className="h-4 w-4" />
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center items-center h-32">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              Nenhuma categoria encontrada
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {categories.map((category) => (
+                <Card key={category.id}>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-semibold">{category.name}</h3>
+                        {category.description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {category.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditCategory(category)}
+                        >
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem 
-                          onClick={() => {
-                            setEditingCategory(category)
-                            setOpenDialog(true)
-                          }} 
-                          className="gap-2 cursor-pointer"
-                        >
-                          <Edit className="h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleDeleteCategory(category.id)}
-                          className="gap-2 text-red-600 cursor-pointer"
                         >
-                          <Trash className="h-4 w-4" />
-                          Remover
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

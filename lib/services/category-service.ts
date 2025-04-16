@@ -1,107 +1,69 @@
-import { getSupabaseBrowserClient } from "@/lib/supabase"
-import type { Database } from "@/types/supabase"
+import { Category } from '@/types/entities';
+import { mockCategories } from '@/lib/mocks/data';
 
-export type Category = Database["public"]["Tables"]["categories"]["Row"]
-export type NewCategory = Database["public"]["Tables"]["categories"]["Insert"]
-export type UpdateCategory = Database["public"]["Tables"]["categories"]["Update"]
+class CategoryService {
+  private categories = [...mockCategories];
 
-export const CategoryService = {
   async getCategories(establishmentId: string): Promise<Category[]> {
-    const supabase = getSupabaseBrowserClient()
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return this.categories.filter(category => category.establishment.id === establishmentId);
+  }
 
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("establishment_id", establishmentId)
-      .order("name")
+  async createCategory(category: {
+    name: string;
+    description: string;
+    establishmentId: string;
+  }): Promise<Category> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (error) {
-      console.error("Error fetching categories:", error)
-      throw error
+    const newCategory: Category = {
+      id: Math.random().toString(36).substring(7),
+      name: category.name,
+      description: category.description,
+      establishmentId: category.establishmentId,
+      establishment: { id: category.establishmentId } as any,
+      products: [],
+      active: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.categories.push(newCategory);
+    return newCategory;
+  }
+
+  async updateCategory(id: string, category: Partial<Category>): Promise<Category> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const index = this.categories.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error('Category not found');
     }
 
-    return data || []
-  },
+    const updatedCategory = {
+      ...this.categories[index],
+      ...category,
+      updatedAt: new Date(),
+    };
 
-  async getActiveCategories(establishmentId: string): Promise<Category[]> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("establishment_id", establishmentId)
-      .eq("active", true)
-      .order("name")
-
-    if (error) {
-      console.error("Error fetching active categories:", error)
-      throw error
-    }
-
-    return data || []
-  },
-
-  async getCategory(id: string): Promise<Category | null> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("categories").select("*").eq("id", id).single()
-
-    if (error) {
-      console.error("Error fetching category:", error)
-      throw error
-    }
-
-    return data
-  },
-
-  async createCategory(category: NewCategory): Promise<Category> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("categories").insert(category).select().single()
-
-    if (error) {
-      console.error("Error creating category:", error)
-      throw error
-    }
-
-    return data
-  },
-
-  async updateCategory(id: string, category: UpdateCategory): Promise<Category> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("categories").update(category).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error updating category:", error)
-      throw error
-    }
-
-    return data
-  },
+    this.categories[index] = updatedCategory;
+    return updatedCategory;
+  }
 
   async deleteCategory(id: string): Promise<void> {
-    const supabase = getSupabaseBrowserClient()
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    const { error } = await supabase.from("categories").delete().eq("id", id)
-
-    if (error) {
-      console.error("Error deleting category:", error)
-      throw error
-    }
-  },
-
-  async toggleCategoryActive(id: string, active: boolean): Promise<Category> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("categories").update({ active }).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error toggling category active status:", error)
-      throw error
+    const index = this.categories.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error('Category not found');
     }
 
-    return data
-  },
+    this.categories.splice(index, 1);
+  }
 }
 
+export const categoryService = new CategoryService(); 

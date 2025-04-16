@@ -11,9 +11,33 @@ import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { CalendarIcon, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { reportsService, ReportPeriod, SalesReport, ProductReport, TableReport } from "@/lib/services/reports-service"
+import { formatCurrency } from "@/lib/utils"
 
 export default function RelatoriosPage() {
-  const [date, setDate] = useState<Date | undefined>(new Date())
+  const [date, setDate] = useState<Date>(new Date())
+  const [reportPeriod, setReportPeriod] = useState<ReportPeriod>("today")
+  const [salesReport, setSalesReport] = useState<SalesReport | null>(null)
+  const [topProducts, setTopProducts] = useState<ProductReport[]>([])
+  const [tablePerformance, setTablePerformance] = useState<TableReport[]>([])
+
+  const loadReports = async () => {
+    const [sales, products, tables] = await Promise.all([
+      reportsService.getSalesReport(reportPeriod),
+      reportsService.getTopProducts(reportPeriod),
+      reportsService.getTablePerformance(reportPeriod)
+    ])
+    setSalesReport(sales)
+    setTopProducts(products)
+    setTablePerformance(tables)
+  }
+
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    if (selectedDate) {
+      setDate(selectedDate)
+      loadReports()
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -45,29 +69,34 @@ export default function RelatoriosPage() {
                 className={cn("w-[240px] justify-start text-left font-normal", !date && "text-muted-foreground")}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? format(date, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
+                {date ? date.toLocaleDateString() : <span>Selecione uma data</span>}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={handleDateSelect}
+                initialFocus
+              />
             </PopoverContent>
           </Popover>
 
-          <Button variant="outline">
+          <Button variant="outline" onClick={loadReports}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="vendas" className="space-y-4">
+      <Tabs defaultValue="sales" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="vendas">Vendas</TabsTrigger>
-          <TabsTrigger value="produtos">Produtos</TabsTrigger>
-          <TabsTrigger value="mesas">Mesas</TabsTrigger>
+          <TabsTrigger value="sales">Vendas</TabsTrigger>
+          <TabsTrigger value="products">Produtos</TabsTrigger>
+          <TabsTrigger value="tables">Mesas</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="vendas" className="space-y-4">
+        <TabsContent value="sales" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Relatório de Vendas</CardTitle>
@@ -78,34 +107,35 @@ export default function RelatoriosPage() {
                 <p className="text-muted-foreground">Gráfico de vendas será exibido aqui</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <div className="grid gap-4 md:grid-cols-3">
                 <Card>
-                  <CardHeader className="py-2">
-                    <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Total de Vendas
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">R$ 12.450,00</div>
-                    <p className="text-xs text-muted-foreground mt-1">+15% em relação ao mês anterior</p>
+                    <div className="text-2xl font-bold">{formatCurrency(salesReport?.totalSales || 0)}</div>
                   </CardContent>
                 </Card>
-
                 <Card>
-                  <CardHeader className="py-2">
-                    <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Total de Pedidos
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">R$ 89,75</div>
-                    <p className="text-xs text-muted-foreground mt-1">+5% em relação ao mês anterior</p>
+                    <div className="text-2xl font-bold">{salesReport?.totalOrders || 0}</div>
                   </CardContent>
                 </Card>
-
                 <Card>
-                  <CardHeader className="py-2">
-                    <CardTitle className="text-sm font-medium">Total de Pedidos</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Ticket Médio
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">138</div>
-                    <p className="text-xs text-muted-foreground mt-1">+8% em relação ao mês anterior</p>
+                    <div className="text-2xl font-bold">{formatCurrency(salesReport?.averageTicket || 0)}</div>
                   </CardContent>
                 </Card>
               </div>
@@ -113,7 +143,7 @@ export default function RelatoriosPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="produtos" className="space-y-4">
+        <TabsContent value="products" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Relatório de Produtos</CardTitle>
@@ -126,21 +156,21 @@ export default function RelatoriosPage() {
 
               <div className="mt-6">
                 <h3 className="text-lg font-medium mb-4">Produtos Mais Vendidos</h3>
-                <div className="space-y-4">
-                  {[
-                    { nome: "Hambúrguer Clássico", quantidade: 45, valor: "R$ 1.345,50" },
-                    { nome: "Batata Frita Grande", quantidade: 38, valor: "R$ 604,20" },
-                    { nome: "Pizza Margherita", quantidade: 32, valor: "R$ 1.536,00" },
-                    { nome: "Cerveja Artesanal", quantidade: 67, valor: "R$ 998,30" },
-                    { nome: "Salada Caesar", quantidade: 24, valor: "R$ 549,60" },
-                  ].map((produto, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 border-b">
-                      <div>
-                        <div className="font-medium">{produto.nome}</div>
-                        <div className="text-sm text-muted-foreground">{produto.quantidade} unidades</div>
-                      </div>
-                      <div className="font-medium">{produto.valor}</div>
-                    </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {topProducts.map((product) => (
+                    <Card key={product.id}>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                          {product.name}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{product.quantity} unidades</div>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCurrency(product.revenue)} em vendas
+                        </p>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
@@ -148,7 +178,7 @@ export default function RelatoriosPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="mesas" className="space-y-4">
+        <TabsContent value="tables" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Relatório de Mesas</CardTitle>
@@ -161,24 +191,21 @@ export default function RelatoriosPage() {
 
               <div className="mt-6">
                 <h3 className="text-lg font-medium mb-4">Desempenho por Mesa</h3>
-                <div className="space-y-4">
-                  {[
-                    { mesa: "Mesa 1", pedidos: 18, valor: "R$ 1.620,00", tempoMedio: "45 min" },
-                    { mesa: "Mesa 2", pedidos: 15, valor: "R$ 1.350,00", tempoMedio: "52 min" },
-                    { mesa: "Mesa 3", pedidos: 22, valor: "R$ 1.980,00", tempoMedio: "38 min" },
-                    { mesa: "Mesa 4", pedidos: 12, valor: "R$ 1.080,00", tempoMedio: "42 min" },
-                    { mesa: "Mesa 5", pedidos: 20, valor: "R$ 1.800,00", tempoMedio: "40 min" },
-                  ].map((mesa, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 border-b">
-                      <div>
-                        <div className="font-medium">{mesa.mesa}</div>
-                        <div className="text-sm text-muted-foreground">{mesa.pedidos} pedidos</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium">{mesa.valor}</div>
-                        <div className="text-sm text-muted-foreground">Tempo médio: {mesa.tempoMedio}</div>
-                      </div>
-                    </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {tablePerformance.map((table) => (
+                    <Card key={table.id}>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                          Mesa {table.number}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{table.orders} pedidos</div>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCurrency(table.revenue)} em vendas
+                        </p>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>

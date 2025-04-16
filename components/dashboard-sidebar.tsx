@@ -99,7 +99,7 @@ const navItems: NavItem[] = [
 export function MobileSidebar() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-  const { signOut } = useAuth()
+  const { logout } = useAuth()
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -148,7 +148,7 @@ export function MobileSidebar() {
               variant="ghost"
               className="w-full justify-start text-muted-foreground"
               size="sm"
-              onClick={() => signOut()}
+              onClick={() => logout()}
             >
               <LogOut className="mr-2 h-4 w-4" />
               Sair
@@ -162,7 +162,7 @@ export function MobileSidebar() {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { signOut } = useAuth()
+  const { logout } = useAuth()
 
   return (
     <aside className="hidden md:flex md:w-64 lg:w-72 border-r flex-col h-screen sticky top-0">
@@ -200,7 +200,7 @@ export function Sidebar() {
         </ul>
       </nav>
       <div className="p-4 border-t">
-        <Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={() => signOut()}>
+        <Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={() => logout()}>
           <LogOut className="mr-2 h-5 w-5" />
           Sair
         </Button>

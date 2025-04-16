@@ -1,102 +1,62 @@
-import { getSupabaseBrowserClient } from "@/lib/supabase"
-import type { Database } from "@/types/supabase"
+import { Table, TableStatus } from '@/types/entities';
+import { mockTables } from '@/lib/mocks/data';
 
-export type Table = Database["public"]["Tables"]["tables"]["Row"]
-export type NewTable = Database["public"]["Tables"]["tables"]["Insert"]
-export type UpdateTable = Database["public"]["Tables"]["tables"]["Update"]
+class TableService {
+  private tables = [...mockTables];
 
-export const TableService = {
   async getTables(establishmentId: string): Promise<Table[]> {
-    const supabase = getSupabaseBrowserClient()
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return this.tables.filter(table => table.establishmentId === establishmentId);
+  }
 
-    const { data, error } = await supabase
-      .from("tables")
-      .select("*")
-      .eq("establishment_id", establishmentId)
-      .order("number")
+  async addTable(tableData: Omit<Table, 'id' | 'createdAt' | 'updatedAt' | 'establishment' | 'orders'>): Promise<Table> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const newTable: Table = {
+      id: `table-${this.tables.length + 1}`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      orders: [],
+      establishment: {} as any, // This will be populated by the establishment context
+      ...tableData
+    };
+    
+    this.tables.push(newTable);
+    return newTable;
+  }
 
-    if (error) {
-      console.error("Error fetching tables:", error)
-      throw error
-    }
-
-    return data || []
-  },
-
-  async getTable(id: string): Promise<Table | null> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("tables").select("*").eq("id", id).single()
-
-    if (error) {
-      console.error("Error fetching table:", error)
-      throw error
-    }
-
-    return data
-  },
-
-  async createTable(table: NewTable): Promise<Table> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("tables").insert(table).select().single()
-
-    if (error) {
-      console.error("Error creating table:", error)
-      throw error
-    }
-
-    return data
-  },
-
-  async updateTable(id: string, table: UpdateTable): Promise<Table> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("tables").update(table).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error updating table:", error)
-      throw error
-    }
-
-    return data
-  },
+  async updateTable(id: string, tableData: Partial<Omit<Table, 'id' | 'createdAt' | 'updatedAt' | 'establishment' | 'orders'>>): Promise<Table> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const index = this.tables.findIndex(table => table.id === id);
+    if (index === -1) throw new Error('Table not found');
+    
+    const updatedTable = {
+      ...this.tables[index],
+      ...tableData,
+      updatedAt: new Date()
+    };
+    
+    this.tables[index] = updatedTable;
+    return updatedTable;
+  }
 
   async deleteTable(id: string): Promise<void> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { error } = await supabase.from("tables").delete().eq("id", id)
-
-    if (error) {
-      console.error("Error deleting table:", error)
-      throw error
-    }
-  },
-
-  async updateTableStatus(id: string, status: Table["status"]): Promise<Table> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("tables").update({ status }).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error updating table status:", error)
-      throw error
-    }
-
-    return data
-  },
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const index = this.tables.findIndex(table => table.id === id);
+    if (index === -1) throw new Error('Table not found');
+    
+    this.tables.splice(index, 1);
+  }
 
   async toggleTableActive(id: string, active: boolean): Promise<Table> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("tables").update({ active }).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error toggling table active status:", error)
-      throw error
-    }
-
-    return data
-  },
+    return this.updateTable(id, { active });
+  }
 }
 
+export const tableService = new TableService(); 

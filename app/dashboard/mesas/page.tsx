@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { Download, Edit, MoreHorizontal, Plus, QrCode, Trash } from "lucide-react"
-import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { QRCodeSVG } from "qrcode.react"
 
@@ -29,20 +28,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
+import { useEstablishment } from "@/components/establishment-context"
+import { tableService } from "@/lib/services/table-service"
+import { Table, TableStatus } from "@/types/entities"
 
-type Table = {
-  id: string
-  number: number
-  status: "FREE" | "OCCUPIED" | "RESERVED" | "MAINTENANCE"
-  capacity: number
-  active: boolean
-  qr_code_url: string | null
-  establishment_id: string
-  created_at: string
-  updated_at: string
-}
-
-const getStatusColor = (status: Table["status"]) => {
+const getStatusColor = (status: TableStatus) => {
   switch (status) {
     case "FREE":
       return "bg-green-500"
@@ -55,7 +45,7 @@ const getStatusColor = (status: Table["status"]) => {
   }
 }
 
-const getStatusText = (status: Table["status"]) => {
+const getStatusText = (status: TableStatus) => {
   switch (status) {
     case "FREE":
       return "Livre"
@@ -76,38 +66,22 @@ export default function TablesPage() {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const supabase = createClient();
+  const { currentEstablishment } = useEstablishment()
 
   useEffect(() => {
     fetchTables()
-  }, [])
+  }, [currentEstablishment])
 
   const fetchTables = async () => {
     try {
       setLoading(true)
       
-      // Get the current user's establishment
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
+      if (!currentEstablishment) {
+        throw new Error("No establishment found")
+      }
 
-      const { data: establishment } = await supabase
-        .from('establishments')
-        .select('id')
-        .eq('owner_id', user.id)
-        .single()
-      
-      if (!establishment) throw new Error("No establishment found")
-
-      // Get tables for this establishment
-      const { data: tables, error } = await supabase
-        .from('tables')
-        .select('*')
-        .eq('establishment_id', establishment.id)
-        .order('number', { ascending: true })
-
-      if (error) throw error
-
-      setTables(tables || [])
+      const tables = await tableService.getTables(currentEstablishment.id)
+      setTables(tables)
     } catch (error) {
       console.error('Error fetching tables:', error)
       toast.error("Erro ao carregar mesas")
@@ -120,41 +94,26 @@ export default function TablesPage() {
     try {
       setSaving(true)
       
-      // Get user's establishment
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
-
-      const { data: establishment } = await supabase
-        .from('establishments')
-        .select('id')
-        .eq('owner_id', user.id)
-        .single()
-      
-      if (!establishment) throw new Error("No establishment found")
+      if (!currentEstablishment) {
+        throw new Error("No establishment found")
+      }
 
       const form = new FormData(formData)
       const tableData = {
         number: parseInt(form.get('number') as string),
         capacity: parseInt(form.get('capacity') as string),
-        status: form.get('status') as Table["status"],
+        status: form.get('status') as TableStatus,
         active: (form.get('active') as string) === 'on',
-        establishment_id: establishment.id
+        establishmentId: currentEstablishment.id,
+        qrCodeUrl: undefined,
+        sessionUuid: crypto.randomUUID()
       }
 
       if (editingTable) {
-        const { error } = await supabase
-          .from('tables')
-          .update(tableData)
-          .eq('id', editingTable.id)
-
-        if (error) throw error
+        await tableService.updateTable(editingTable.id, tableData)
         toast.success("Mesa atualizada com sucesso")
       } else {
-        const { error } = await supabase
-          .from('tables')
-          .insert(tableData)
-
-        if (error) throw error
+        await tableService.addTable(tableData)
         toast.success("Mesa adicionada com sucesso")
       }
 
@@ -171,13 +130,7 @@ export default function TablesPage() {
 
   const handleDeleteTable = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('tables')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-
+      await tableService.deleteTable(id)
       setTables(tables.filter((t) => t.id !== id))
       toast.success("Mesa removida com sucesso")
     } catch (error) {
@@ -188,13 +141,7 @@ export default function TablesPage() {
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
     try {
-      const { error } = await supabase
-        .from('tables')
-        .update({ active: !currentActive })
-        .eq('id', id)
-
-      if (error) throw error
-
+      await tableService.toggleTableActive(id, !currentActive)
       setTables(tables.map(table => 
         table.id === id ? { ...table, active: !currentActive } : table
       ))

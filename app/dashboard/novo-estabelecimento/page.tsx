@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { toast } from "sonner"
+import { PaymentMethod } from "@/types/entities"
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -13,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/hooks/use-auth"
-import { EstablishmentService } from "@/lib/services/establishment-service"
+import { establishmentService } from "@/lib/services/establishment-service"
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres" }),
@@ -46,12 +47,31 @@ export default function NovoEstabelecimentoPage() {
     setIsLoading(true)
 
     try {
-      const newEstablishment = await EstablishmentService.createEstablishment({
+      const newEstablishment = await establishmentService.createEstablishment({
         name: values.name,
-        description: values.description || null,
-        address: values.address || null,
-        phone: values.phone || null,
-        owner_id: user.id,
+        description: values.description || undefined,
+        address: values.address || undefined,
+        phone: values.phone || undefined,
+        ownerId: user.id,
+        owner: user,
+        staff: [],
+        products: [],
+        categories: [],
+        tables: [],
+        orders: [],
+        subscription: {
+          id: crypto.randomUUID(),
+          establishmentId: '',
+          establishment: {} as any,
+          startDate: new Date(),
+          active: true,
+          autoRenew: true,
+          paymentMethod: PaymentMethod.CREDIT_CARD,
+          invoices: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        active: true
       })
 
       toast.success("Estabelecimento criado com sucesso!")

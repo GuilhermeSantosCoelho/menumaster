@@ -2,28 +2,25 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
+import { sessionService } from "@/lib/services/session-service"
 
 export default function ClienteSession({ params }: { params: { mesa: string } }) {
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     const checkSession = async () => {
       try {
-        // Get table information
-        const { data: table, error: tableError } = await supabase
-          .from('tables')
-          .select('id, session_uuid')
-          .eq('id', params.mesa)
-          .single()
+        const isValid = await sessionService.validateSession(params.mesa)
+        
+        if (!isValid) {
+          toast.error('Esta mesa está fechada. Por favor, entre em contato com um garçom.')
+          router.push('/')
+          return
+        }
 
-        if (tableError) throw tableError
-        if (!table) throw new Error('Table not found')
-
-        // Redirect to the main page with the session UUID
-        router.push(`/cliente/${table.id}?session=${table.session_uuid}`)
+        const table = await sessionService.getTableSession(params.mesa)
+        router.push(`/cliente/${table.number}?session=${table.sessionUuid}`)
       } catch (error) {
         console.error('Error checking session:', error)
         toast.error('Erro ao verificar sessão da mesa')
@@ -32,7 +29,7 @@ export default function ClienteSession({ params }: { params: { mesa: string } })
     }
 
     checkSession()
-  }, [params.mesa, router, supabase])
+  }, [params.mesa, router])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">

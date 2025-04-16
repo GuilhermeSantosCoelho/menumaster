@@ -27,8 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useAuth } from '@/hooks/use-auth';
-import { createClient } from '@/utils/supabase/client';
+import { authService } from '@/lib/services/auth-service';
 
 const formSchema = z
   .object({
@@ -48,8 +47,6 @@ const formSchema = z
 export default function RegisterPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  // const { signUp } = useAuth()
-  const supabase = createClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -66,42 +63,22 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Registrar o usuário
-      // const { data, error } = await signUp(values.email, values.password, values.name)
-      const { data, error } = {
-        data: {
-          user: {
-            id: '123',
-          },
-        },
-        error: true,
-      };
+      const { user, establishment } = await authService.registerUser({
+        name: values.name,
+        email: values.email,
+        password: values.password,
+        establishmentName: values.establishmentName,
+      });
 
-      if (error) {
-        toast.error('Falha ao criar conta. Verifique seus dados e tente novamente.');
-        console.error(error);
-        return;
-      }
-
-      if (data.user) {
-        // Criar o estabelecimento
-        const { error: establishmentError } = await supabase.from('establishments').insert({
-          name: values.establishmentName,
-          owner_id: data.user.id,
-        });
-
-        if (establishmentError) {
-          toast.error('Falha ao criar estabelecimento.');
-          console.error(establishmentError);
-          return;
-        }
-
-        toast.success('Conta criada com sucesso!');
-        router.push('/dashboard');
-      }
+      toast.success('Conta criada com sucesso!');
+      router.push('/dashboard');
     } catch (error) {
       console.error(error);
-      toast.error('Ocorreu um erro ao criar sua conta.');
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Ocorreu um erro ao criar sua conta.');
+      }
     } finally {
       setIsLoading(false);
     }

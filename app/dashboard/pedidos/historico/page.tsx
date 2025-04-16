@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar, Clock, Search, Utensils } from 'lucide-react';
@@ -10,60 +10,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { createClient } from '@/utils/supabase/client';
-
-type OrderStatus = 'PENDING' | 'PREPARING' | 'READY' | 'DELIVERED' | 'CANCELLED';
-
-type OrderItem = {
-  id: string;
-  product_id: string;
-  quantity: number;
-  notes: string | null;
-  unit_price: number;
-  product: {
-    name: string;
-  };
-};
-
-type Order = {
-  id: string;
-  table_id: string;
-  status: OrderStatus;
-  created_at: string;
-  total_amount: number;
-  items: OrderItem[];
-  table: {
-    number: number;
-    closed_at: string;
-  };
-};
+import { Order, OrderStatus } from '@/types/entities';
+import { historicalOrdersService } from '@/lib/services/historical-orders-service';
 
 const getStatusColor = (status: OrderStatus) => {
   switch (status) {
-    case 'PENDING':
+    case OrderStatus.PENDING:
       return 'bg-amber-500';
-    case 'PREPARING':
+    case OrderStatus.PREPARING:
       return 'bg-blue-500';
-    case 'READY':
+    case OrderStatus.READY:
       return 'bg-green-500';
-    case 'DELIVERED':
+    case OrderStatus.DELIVERED:
       return 'bg-slate-500';
-    case 'CANCELLED':
+    case OrderStatus.CANCELLED:
       return 'bg-red-500';
   }
 };
 
 const getStatusText = (status: OrderStatus) => {
   switch (status) {
-    case 'PENDING':
+    case OrderStatus.PENDING:
       return 'Aguardando preparo';
-    case 'PREPARING':
+    case OrderStatus.PREPARING:
       return 'Em preparo';
-    case 'READY':
+    case OrderStatus.READY:
       return 'Pronto para entrega';
-    case 'DELIVERED':
+    case OrderStatus.DELIVERED:
       return 'Entregue';
-    case 'CANCELLED':
+    case OrderStatus.CANCELLED:
       return 'Cancelado';
   }
 };
@@ -72,7 +47,6 @@ export default function HistoricalOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [tableSearch, setTableSearch] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     fetchOrders();
@@ -81,44 +55,8 @@ export default function HistoricalOrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { data: establishment } = await supabase
-        .from('establishments')
-        .select('id')
-        .eq('owner_id', user.id)
-        .single();
-
-      if (!establishment) throw new Error('Establishment not found');
-
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select(
-          `
-          *,
-          table:table_id (
-            number,
-            closed_at
-          ),
-          items:order_items (
-            *,
-            product:product_id (
-              name
-            )
-          )
-        `
-        )
-        .eq('establishment_id', establishment?.id)
-        .eq('table.is_open', false)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setOrders(orders || []);
+      const historicalOrders = await historicalOrdersService.getHistoricalOrders();
+      setOrders(historicalOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('Erro ao carregar pedidos');
@@ -181,15 +119,9 @@ export default function HistoricalOrdersPage() {
                   </div>
                   <CardDescription className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
-                    {new Date(order.created_at).toLocaleDateString()}
+                    {new Date(order.createdAt).toLocaleDateString()}
                     <Clock className="h-4 w-4 ml-2" />
-                    {new Date(order.created_at).toLocaleTimeString()}
-                    {order.table.closed_at && (
-                      <>
-                        <span className="mx-2">•</span>
-                        <span>Fechada em: {new Date(order.table.closed_at).toLocaleString()}</span>
-                      </>
-                    )}
+                    {new Date(order.createdAt).toLocaleTimeString()}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -203,13 +135,13 @@ export default function HistoricalOrdersPage() {
                           )}
                         </span>
                         <span className="text-muted-foreground">
-                          R$ {(item.quantity * item.unit_price).toFixed(2)}
+                          R$ {(item.quantity * item.unitPrice).toFixed(2)}
                         </span>
                       </div>
                     ))}
                     <div className="flex items-center justify-between border-t pt-2 mt-2">
                       <span className="font-medium">Total</span>
-                      <span className="font-medium">R$ {order.total_amount.toFixed(2)}</span>
+                      <span className="font-medium">R$ {order.totalAmount.toFixed(2)}</span>
                     </div>
                   </div>
                 </CardContent>

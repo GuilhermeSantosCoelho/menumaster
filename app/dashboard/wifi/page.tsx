@@ -1,85 +1,46 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/utils/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
-
-interface WiFiSettings {
-  wifi_ssid: string
-  wifi_password: string
-}
+import { useEstablishment } from '@/components/establishment-context'
+import { wifiService, WiFiSettings } from '@/lib/services/wifi-service'
 
 export default function WiFiPage() {
+  const { currentEstablishment } = useEstablishment()
   const [settings, setSettings] = useState<WiFiSettings>({
-    wifi_ssid: '',
-    wifi_password: '',
+    wifiSsid: '',
+    wifiPassword: '',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const supabase = createClient()
-  const router = useRouter()
 
   useEffect(() => {
-    async function fetchSettings() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          router.push('/login')
-          return
-        }
-
-        const { data, error } = await supabase
-          .from('establishments')
-          .select('wifi_ssid, wifi_password')
-          .eq('owner_id', user.id)
-          .single()
-
-        console.log('data', data)
-
-        if (error) throw error
-
-        if (data) {
-          setSettings({
-            wifi_ssid: data.wifi_ssid || '',
-            wifi_password: data.wifi_password || '',
-          })
-        }
-      } catch (error) {
-        console.error('Error fetching WiFi settings:', error)
-        toast.error('Erro ao carregar configurações do WiFi')
-      } finally {
-        setLoading(false)
-      }
+    if (currentEstablishment) {
+      fetchSettings()
     }
+  }, [currentEstablishment])
 
-    fetchSettings()
-  }, [supabase, router])
+  const fetchSettings = async () => {
+    try {
+      const data = await wifiService.getWiFiSettings(currentEstablishment!.id)
+      setSettings(data)
+    } catch (error) {
+      console.error('Error fetching WiFi settings:', error)
+      toast.error('Erro ao carregar configurações do WiFi')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
-
-      const { error } = await supabase
-        .from('establishments')
-        .update({
-          wifi_ssid: settings.wifi_ssid,
-          wifi_password: settings.wifi_password,
-        })
-        .eq('owner_id', user.id)
-
-      if (error) throw error
-
+      await wifiService.updateWiFiSettings(currentEstablishment!.id, settings)
       toast.success('Configurações do WiFi salvas com sucesso!')
     } catch (error) {
       console.error('Error saving WiFi settings:', error)
@@ -107,8 +68,8 @@ export default function WiFiPage() {
             <Label htmlFor="wifi_ssid">Nome da Rede (SSID)</Label>
             <Input
               id="wifi_ssid"
-              value={settings.wifi_ssid}
-              onChange={(e) => setSettings({ ...settings, wifi_ssid: e.target.value })}
+              value={settings.wifiSsid}
+              onChange={(e) => setSettings({ ...settings, wifiSsid: e.target.value })}
               placeholder="Digite o nome da rede WiFi"
             />
           </div>
@@ -118,8 +79,8 @@ export default function WiFiPage() {
             <Input
               id="wifi_password"
               type="password"
-              value={settings.wifi_password}
-              onChange={(e) => setSettings({ ...settings, wifi_password: e.target.value })}
+              value={settings.wifiPassword}
+              onChange={(e) => setSettings({ ...settings, wifiPassword: e.target.value })}
               placeholder="Digite a senha do WiFi"
             />
           </div>

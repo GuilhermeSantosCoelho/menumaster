@@ -1,181 +1,61 @@
-import { getSupabaseBrowserClient } from "@/lib/supabase"
-import type { Database } from "@/types/supabase"
+import { Order, OrderStatus } from '@/types/entities';
+import { mockOrders } from '../mocks/data';
 
-export type Order = Database["public"]["Tables"]["orders"]["Row"]
-export type NewOrder = Database["public"]["Tables"]["orders"]["Insert"]
-export type UpdateOrder = Database["public"]["Tables"]["orders"]["Update"]
+class OrderService {
+  async getOrders(): Promise<Order[]> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return mockOrders;
+  }
 
-export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"]
-export type NewOrderItem = Database["public"]["Tables"]["order_items"]["Insert"]
+  async getOrderById(id: string): Promise<Order | null> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return mockOrders.find(o => o.id === id) || null;
+  }
 
-export const OrderService = {
-  async getOrders(establishmentId: string): Promise<Order[]> {
-    const supabase = getSupabaseBrowserClient()
+  async createOrder(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("establishment_id", establishmentId)
-      .order("created_at", { ascending: false })
+    const newOrder: Order = {
+      ...order,
+      id: (mockOrders.length + 1).toString(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
 
-    if (error) {
-      console.error("Error fetching orders:", error)
-      throw error
-    }
+    mockOrders.push(newOrder);
+    return newOrder;
+  }
 
-    return data || []
-  },
+  async updateOrderStatus(id: string, status: OrderStatus): Promise<Order | null> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-  async getOrdersByStatus(establishmentId: string, status: Order["status"]): Promise<Order[]> {
-    const supabase = getSupabaseBrowserClient()
+    const index = mockOrders.findIndex(o => o.id === id);
+    if (index === -1) return null;
 
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("establishment_id", establishmentId)
-      .eq("status", status)
-      .order("created_at", { ascending: false })
+    mockOrders[index] = {
+      ...mockOrders[index],
+      status,
+      updatedAt: new Date()
+    };
 
-    if (error) {
-      console.error("Error fetching orders by status:", error)
-      throw error
-    }
-
-    return data || []
-  },
+    return mockOrders[index];
+  }
 
   async getOrdersByTable(tableId: string): Promise<Order[]> {
-    const supabase = getSupabaseBrowserClient()
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return mockOrders.filter(o => o.table.id === tableId);
+  }
 
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("table_id", tableId)
-      .order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("Error fetching orders by table:", error)
-      throw error
-    }
-
-    return data || []
-  },
-
-  async getOrder(id: string): Promise<Order | null> {
-    const supabase = getSupabaseBrowserClient()
-
-    const { data, error } = await supabase.from("orders").select("*").eq("id", id).single()
-
-    if (error) {
-      console.error("Error fetching order:", error)
-      throw error
-    }
-
-    return data
-  },
-
-  async getOrderWithItems(id: string): Promise<{ order: Order; items: OrderItem[] } | null> {
-    const supabase = getSupabaseBrowserClient()
-
-    // Fetch order
-    const { data: order, error: orderError } = await supabase.from("orders").select("*").eq("id", id).single()
-
-    if (orderError) {
-      console.error("Error fetching order:", orderError)
-      throw orderError
-    }
-
-    if (!order) return null
-
-    // Fetch order items
-    const { data: items, error: itemsError } = await supabase
-      .from("order_items")
-      .select("*, product:products(*)")
-      .eq("order_id", id)
-
-    if (itemsError) {
-      console.error("Error fetching order items:", itemsError)
-      throw itemsError
-    }
-
-    return {
-      order,
-      items: items || [],
-    }
-  },
-
-  async createOrder(order: NewOrder, items: Omit<NewOrderItem, "order_id">[]): Promise<Order> {
-    const supabase = getSupabaseBrowserClient()
-
-    // Start a transaction
-    const { data: newOrder, error: orderError } = await supabase.from("orders").insert(order).select().single()
-
-    if (orderError) {
-      console.error("Error creating order:", orderError)
-      throw orderError
-    }
-
-    // Insert order items
-    if (items.length > 0) {
-      const orderItems = items.map((item) => ({
-        ...item,
-        order_id: newOrder.id,
-      }))
-
-      const { error: itemsError } = await supabase.from("order_items").insert(orderItems)
-
-      if (itemsError) {
-        console.error("Error creating order items:", itemsError)
-        throw itemsError
-      }
-    }
-
-    return newOrder
-  },
-
-  async updateOrderStatus(id: string, status: Order["status"]): Promise<Order> {
-    const supabase = getSupabaseBrowserClient()
-
-    const updates: UpdateOrder = { status }
-
-    // If status is DELIVERED or CANCELLED, set completed_at
-    if (status === "DELIVERED" || status === "CANCELLED") {
-      updates.completed_at = new Date().toISOString()
-    }
-
-    const { data, error } = await supabase.from("orders").update(updates).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error updating order status:", error)
-      throw error
-    }
-
-    return data
-  },
-
-  async updateOrderPaymentStatus(
-    id: string,
-    paymentStatus: string,
-    paymentMethod?: Order["payment_method"],
-  ): Promise<Order> {
-    const supabase = getSupabaseBrowserClient()
-
-    const updates: UpdateOrder = {
-      payment_status: paymentStatus,
-    }
-
-    if (paymentMethod) {
-      updates.payment_method = paymentMethod
-    }
-
-    const { data, error } = await supabase.from("orders").update(updates).eq("id", id).select().single()
-
-    if (error) {
-      console.error("Error updating order payment status:", error)
-      throw error
-    }
-
-    return data
-  },
+  async getOrdersByStatus(status: OrderStatus): Promise<Order[]> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return mockOrders.filter(o => o.status === status);
+  }
 }
 
+export const orderService = new OrderService(); 

@@ -4,7 +4,8 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
-import { EstablishmentService, type Establishment } from "@/lib/services/establishment-service"
+import { establishmentService } from "@/lib/services/establishment-service"
+import { Establishment } from "@/types/entities"
 
 interface EstablishmentContextType {
   establishments: Establishment[]
@@ -33,7 +34,7 @@ export function EstablishmentProvider({ children }: { children: ReactNode }) {
 
       try {
         setLoading(true)
-        const userEstablishments = await EstablishmentService.getUserEstablishments(user.id)
+        const userEstablishments = await establishmentService.getEstablishments()
         setEstablishments(userEstablishments)
 
         console.log('userEstablishments', userEstablishments)
@@ -48,7 +49,7 @@ export function EstablishmentProvider({ children }: { children: ReactNode }) {
         // Verificar se há um estabelecimento salvo no localStorage
         const savedEstablishmentId = localStorage.getItem("currentEstablishmentId")
         const savedEstablishment = savedEstablishmentId
-          ? userEstablishments.find((e) => e.id === savedEstablishmentId)
+          ? userEstablishments.find((e: Establishment) => e.id === savedEstablishmentId)
           : null
 
         setCurrentEstablishment(savedEstablishment || userEstablishments[0])

@@ -1,66 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
 import { TableSign } from '@/components/table-sign';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
-
-interface Table {
-  id: string;
-  number: number;
-  establishment_id: string;
-}
-
-interface Establishment {
-  id: string;
-  name: string;
-  logo_url?: string;
-}
+import { useEstablishment } from '@/components/establishment-context';
+import { Table, Establishment } from '@/types/entities';
+import { tableSignsService } from '@/lib/services/table-signs-service';
 
 export default function TableSignsPage() {
   const [tables, setTables] = useState<Table[]>([]);
-  const [establishment, setEstablishment] = useState<{
-    id: string;
-    name: string;
-    logo?: string;
-  } | null>(null);
+  const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
-  const router = useRouter();
+  const { currentEstablishment } = useEstablishment();
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          router.push('/login');
-          return;
+        if (!currentEstablishment) {
+          throw new Error('No establishment found');
         }
 
-        // Fetch establishment
-        const { data: establishment, error: establishmentError } = await supabase
-          .from('establishments')
-          .select('id, name, logo')
-          .eq('owner_id', user.id)
-          .single();
-
-        console.log('establishmentData', establishment);
-
-        if (establishmentError) throw establishmentError;
+        const { tables, establishment } = await tableSignsService.getTableSignsData(currentEstablishment.id);
+        setTables(tables);
         setEstablishment(establishment);
-
-        // Fetch tables
-        const { data: tablesData, error: tablesError } = await supabase
-          .from('tables')
-          .select('*')
-          .eq('establishment_id', establishment.id);
-
-        if (tablesError) throw tablesError;
-        setTables(tablesData || []);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Erro ao carregar dados');
@@ -70,7 +33,7 @@ export default function TableSignsPage() {
     }
 
     fetchData();
-  }, [supabase, router]);
+  }, [currentEstablishment]);
 
   const handlePrint = () => {
     window.print();
