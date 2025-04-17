@@ -78,6 +78,7 @@ export interface Establishment {
   secondaryColor?: string // Cor secundária para personalização
   wifiSsid?: string // Nome da rede WiFi
   wifiPassword?: string // Senha da rede WiFi
+  showWifiInMenu: boolean // Se deve exibir as informações do WiFi no cardápio
   createdAt: Date
   updatedAt: Date
   ownerId: string // Referência ao usuário proprietário

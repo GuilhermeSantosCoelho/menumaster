@@ -25,6 +25,7 @@ class ProductService {
     categoryId: string
     available: boolean
     establishmentId: string
+    stock?: number
   }): Promise<Product> {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500))
@@ -41,6 +42,7 @@ class ProductService {
       orderItems: [],
       createdAt: new Date(),
       updatedAt: new Date(),
+      stock: data.stock,
     }
 
     this.products.push(newProduct)
@@ -53,6 +55,7 @@ class ProductService {
     price: number
     categoryId: string
     available: boolean
+    stock?: number
   }): Promise<Product> {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500))

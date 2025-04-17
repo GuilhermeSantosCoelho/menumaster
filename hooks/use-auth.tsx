@@ -28,6 +28,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(user);
     } catch (error) {
       console.error('Error checking user:', error);
+      // Clear localStorage if there's an error
+      localStorage.removeItem('currentUser');
     } finally {
       setLoading(false);
     }

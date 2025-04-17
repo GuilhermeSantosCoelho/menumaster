@@ -1,135 +1,159 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useToast } from "@/components/ui/use-toast"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react"
-import { Category } from "@/types/entities"
-import { categoryService } from "@/lib/services/category-service"
-import { useEstablishment } from "@/components/establishment-context"
+import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Category } from "@/types/entities";
+import { categoryService } from "@/lib/services/category-service";
+import { useEstablishment } from "@/components/establishment-context";
 
 export default function CategoriesPage() {
-  const { toast } = useToast()
-  const { currentEstablishment } = useEstablishment()
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isAddingCategory, setIsAddingCategory] = useState(false)
-  const [newCategory, setNewCategory] = useState({ name: '', description: '' })
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-
+  const { toast } = useToast();
+  const { currentEstablishment } = useEstablishment();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [currentCategory, setCurrentCategory] =
+    useState<Partial<Category> | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
+    null
+  );
   useEffect(() => {
     if (currentEstablishment) {
-      loadCategories()
+      loadCategories();
     }
-  }, [currentEstablishment])
+  }, [currentEstablishment]);
 
   const loadCategories = async () => {
     try {
-      setLoading(true)
-      const data = await categoryService.getCategories(currentEstablishment!.id)
-      setCategories(data)
+      setLoading(true);
+      const data = await categoryService.getCategories(
+        currentEstablishment!.id
+      );
+      setCategories(data);
     } catch (error) {
       toast({
-        title: 'Erro ao carregar categorias',
-        description: 'Não foi possível carregar as categorias. Tente novamente.',
-        variant: 'destructive',
-      })
+        title: "Erro ao carregar categorias",
+        description:
+          "Não foi possível carregar as categorias. Tente novamente.",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleAddCategory = async () => {
-    if (!newCategory.name.trim()) {
+    if (!currentCategory?.name!.trim()) {
       toast({
-        title: 'Nome obrigatório',
-        description: 'O nome da categoria é obrigatório.',
-        variant: 'destructive',
-      })
-      return
+        title: "Nome obrigatório",
+        description: "O nome da categoria é obrigatório.",
+        variant: "destructive",
+      });
+      return;
     }
 
     try {
-      setIsAddingCategory(true)
+      setIsAddingCategory(true);
       await categoryService.createCategory({
-        name: newCategory.name,
-        description: newCategory.description,
+        name: currentCategory.name!,
+        description: currentCategory.description || "",
         establishmentId: currentEstablishment!.id,
-      })
-      
-      setNewCategory({ name: '', description: '' })
-      await loadCategories()
-      
+      });
+
+      setCurrentCategory(null);
+      await loadCategories();
+
       toast({
-        title: 'Categoria criada',
-        description: 'A categoria foi criada com sucesso.',
-      })
+        title: "Categoria criada",
+        description: "A categoria foi criada com sucesso.",
+      });
     } catch (error) {
       toast({
-        title: 'Erro ao criar categoria',
-        description: 'Não foi possível criar a categoria. Tente novamente.',
-        variant: 'destructive',
-      })
+        title: "Erro ao criar categoria",
+        description: "Não foi possível criar a categoria. Tente novamente.",
+        variant: "destructive",
+      });
     } finally {
-      setIsAddingCategory(false)
+      setIsAddingCategory(false);
     }
-  }
+  };
 
   const handleEditCategory = async (category: Category) => {
     try {
-      setEditingCategory(category)
-      await categoryService.updateCategory(category.id, category)
-      await loadCategories()
-      
+      await categoryService.updateCategory(category.id, category);
+      await loadCategories();
+
       toast({
-        title: 'Categoria atualizada',
-        description: 'A categoria foi atualizada com sucesso.',
-      })
+        title: "Categoria atualizada",
+        description: "A categoria foi atualizada com sucesso.",
+      });
     } catch (error) {
       toast({
-        title: 'Erro ao atualizar categoria',
-        description: 'Não foi possível atualizar a categoria. Tente novamente.',
-        variant: 'destructive',
-      })
+        title: "Erro ao atualizar categoria",
+        description: "Não foi possível atualizar a categoria. Tente novamente.",
+        variant: "destructive",
+      });
     } finally {
-      setEditingCategory(null)
+      setCurrentCategory(null);
     }
-  }
+  };
 
   const handleDeleteCategory = async (id: string) => {
     try {
-      await categoryService.deleteCategory(id)
-      await loadCategories()
-      
+      setLoading(true);
+      await categoryService.deleteCategory(id);
+      await loadCategories();
+      setCategoryToDelete(null);
+
       toast({
-        title: 'Categoria excluída',
-        description: 'A categoria foi excluída com sucesso.',
-      })
+        title: "Categoria excluída",
+        description: "A categoria foi excluída com sucesso.",
+      });
     } catch (error) {
       toast({
-        title: 'Erro ao excluir categoria',
-        description: 'Não foi possível excluir a categoria. Tente novamente.',
-        variant: 'destructive',
-      })
+        title: "Erro ao excluir categoria",
+        description: "Não foi possível excluir a categoria. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Categorias</h1>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Categoria
-            </Button>
-          </DialogTrigger>
+        <div>
+          <h1 className="text-2xl font-bold">Categorias</h1>
+          <p className="text-muted-foreground">
+            Gerencie as categorias do seu estabelecimento
+          </p>
+        </div>
+        <Button
+          onClick={() => setCurrentCategory({ name: "", description: "" })}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Nova Categoria
+        </Button>
+        <Dialog
+          open={currentCategory !== null}
+          onOpenChange={() => setCurrentCategory(null)}
+        >
+          <DialogTrigger asChild></DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Nova Categoria</DialogTitle>
@@ -139,8 +163,13 @@ export default function CategoriesPage() {
                 <Label htmlFor="name">Nome</Label>
                 <Input
                   id="name"
-                  value={newCategory.name}
-                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                  value={currentCategory?.name || ""}
+                  onChange={(e) =>
+                    setCurrentCategory({
+                      ...currentCategory,
+                      name: e.target.value,
+                    })
+                  }
                   placeholder="Nome da categoria"
                 />
               </div>
@@ -148,23 +177,38 @@ export default function CategoriesPage() {
                 <Label htmlFor="description">Descrição</Label>
                 <Textarea
                   id="description"
-                  value={newCategory.description}
-                  onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                  value={currentCategory?.description || ""}
+                  onChange={(e) =>
+                    setCurrentCategory({
+                      ...currentCategory,
+                      description: e.target.value,
+                    })
+                  }
                   placeholder="Descrição da categoria"
                 />
               </div>
               <Button
-                onClick={handleAddCategory}
-                disabled={isAddingCategory}
+                onClick={() => {
+                  if (currentCategory?.id) {
+                    handleEditCategory(currentCategory as Category);
+                  } else {
+                    handleAddCategory();
+                  }
+                }}
+                disabled={
+                  isAddingCategory || currentCategory?.name!.trim() === ""
+                }
                 className="w-full"
               >
                 {isAddingCategory ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Criando...
+                    {isAddingCategory ? "Criando..." : "Atualizando..."}
                   </>
+                ) : currentCategory?.id ? (
+                  "Atualizar Categoria"
                 ) : (
-                  'Criar Categoria'
+                  "Criar Categoria"
                 )}
               </Button>
             </div>
@@ -203,16 +247,16 @@ export default function CategoriesPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEditCategory(category)}
+                          onClick={() => setCurrentCategory(category)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteCategory(category.id)}
+                          onClick={() => setCategoryToDelete(category)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" color="red" />
                         </Button>
                       </div>
                     </div>
@@ -223,6 +267,39 @@ export default function CategoriesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={categoryToDelete !== null}
+        onOpenChange={() => setCategoryToDelete(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>
+              Tem certeza que deseja excluir a categoria{" "}
+              <span className="font-semibold">{categoryToDelete?.name}</span>?
+              Esta ação não pode ser desfeita.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCategoryToDelete(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                categoryToDelete && handleDeleteCategory(categoryToDelete.id)
+              }
+              disabled={loading}
+            >
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-  )
-} 
+  );
+}

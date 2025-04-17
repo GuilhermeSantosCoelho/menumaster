@@ -3,6 +3,7 @@ import { mockEstablishments } from '@/lib/mocks/data';
 export interface WiFiSettings {
   wifiSsid: string;
   wifiPassword: string;
+  showWifiInMenu: boolean;
 }
 
 class WiFiService {
@@ -18,6 +19,7 @@ class WiFiService {
     return {
       wifiSsid: establishment.wifiSsid || '',
       wifiPassword: establishment.wifiPassword || '',
+      showWifiInMenu: establishment.showWifiInMenu || false,
     };
   }
 
@@ -33,6 +35,7 @@ class WiFiService {
     // Update the establishment's WiFi settings
     establishment.wifiSsid = settings.wifiSsid;
     establishment.wifiPassword = settings.wifiPassword;
+    establishment.showWifiInMenu = settings.showWifiInMenu;
   }
 }
 

@@ -177,7 +177,7 @@ export default function TablesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mesas</h1>
+          <h1 className="text-2xl font-bold">Mesas</h1>
           <p className="text-muted-foreground">Gerencie as mesas do seu estabelecimento</p>
         </div>
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>

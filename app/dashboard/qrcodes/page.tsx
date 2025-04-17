@@ -94,7 +94,7 @@ export default function QRCodesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">QR Codes</h1>
+        <h1 className="text-2xl font-bold">QR Codes</h1>
         <p className="text-muted-foreground">Gerencie os QR codes das mesas do seu estabelecimento</p>
       </div>
 
