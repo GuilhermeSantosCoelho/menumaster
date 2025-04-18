@@ -7,12 +7,14 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { useEstablishment } from '@/components/establishment-context'
 import { wifiService, WiFiSettings } from '@/lib/services/wifi-service'
+import { Switch } from '@/components/ui/switch'
 
 export default function WiFiPage() {
   const { currentEstablishment } = useEstablishment()
   const [settings, setSettings] = useState<WiFiSettings>({
     wifiSsid: '',
     wifiPassword: '',
+    showWifiInMenu: false,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -82,6 +84,14 @@ export default function WiFiPage() {
               value={settings.wifiPassword}
               onChange={(e) => setSettings({ ...settings, wifiPassword: e.target.value })}
               placeholder="Digite a senha do WiFi"
+            />
+          </div>
+          <div className="space-x-2 flex items-center">
+            <Label htmlFor="show_wifi_in_menu">Exibir WiFi no Menu</Label>
+            <Switch
+              id="show_wifi_in_menu"
+              checked={settings.showWifiInMenu}
+              onCheckedChange={(checked) => setSettings({ ...settings, showWifiInMenu: checked })}
             />
           </div>
 

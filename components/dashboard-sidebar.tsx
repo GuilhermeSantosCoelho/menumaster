@@ -41,22 +41,22 @@ const navItems: NavItem[] = [
   },
   {
     title: "Pedidos",
-    href: "/dashboard/pedidos",
+    href: "/dashboard/orders",
     icon: Receipt,
   },
   {
     title: "Produtos",
-    href: "/dashboard/produtos",
+    href: "/dashboard/products",
     icon: ShoppingBag,
   },
   {
     title: "Categorias",
-    href: "/dashboard/categorias",
+    href: "/dashboard/categories",
     icon: Tags,
   },
   {
     title: "Mesas",
-    href: "/dashboard/mesas",
+    href: "/dashboard/tables",
     icon: Table,
   },
   {
@@ -76,22 +76,22 @@ const navItems: NavItem[] = [
   },
   {
     title: "Faturas",
-    href: "/dashboard/faturas",
+    href: "/dashboard/invoices",
     icon: CreditCard,
   },
   {
     title: "Relatórios",
-    href: "/dashboard/relatorios",
+    href: "/dashboard/reports",
     icon: BarChart,
   },
   {
     title: "Configurações",
-    href: "/dashboard/configuracoes",
+    href: "/dashboard/settings",
     icon: Settings,
   },
   {
     title: "Minha Conta",
-    href: "/dashboard/conta",
+    href: "/dashboard/account",
     icon: User,
   },
 ]

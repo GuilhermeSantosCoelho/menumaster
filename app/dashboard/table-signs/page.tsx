@@ -56,9 +56,9 @@ export default function TableSignsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Plaquinhas das Mesas</h1>
+        <h1 className="text-2xl font-bold">Plaquinhas das mesas</h1>
         <Button onClick={handlePrint}>Imprimir</Button>
       </div>
 

@@ -21,7 +21,7 @@ export function TableSign({
   return (
     <div
       className={cn(
-        'w-full max-w-[300px] bg-white rounded-2xl shadow-lg p-6 space-y-6 mx-auto',
+        'w-full max-w-[300px] bg-white rounded-2xl shadow-lg border border-gray-200 p-6 space-y-6 mx-auto',
         className
       )}
     >
