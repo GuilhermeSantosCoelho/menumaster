@@ -44,9 +44,13 @@ class AuthService {
   }
 
   async getCurrentUser(): Promise<User | null> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return this.currentUser;
+    try {
+      const response = await api.get<{ user: User }>('/auth/me');
+      this.currentUser = response.data.user;
+      return this.currentUser;
+    } catch (error) {
+      return null;
+    }
   }
 
   async signUp(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'establishments'>): Promise<AuthResponse> {

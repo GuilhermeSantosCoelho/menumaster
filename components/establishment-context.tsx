@@ -34,7 +34,7 @@ export function EstablishmentProvider({ children }: { children: ReactNode }) {
 
       try {
         setLoading(true)
-        const userEstablishments = await establishmentService.getEstablishments()
+        const userEstablishments = await establishmentService.getEstablishments(user.id)
         setEstablishments(userEstablishments)
 
         console.log('userEstablishments', userEstablishments)
@@ -62,9 +62,10 @@ export function EstablishmentProvider({ children }: { children: ReactNode }) {
         setLoading(false)
       }
     }
-
-    loadEstablishments()
-  }, [user, router])
+    if (establishments.length === 0) {
+      loadEstablishments()
+    }
+  }, [user, router, establishments])
 
   const changeEstablishment = (establishmentId: string) => {
     const establishment = establishments.find((e) => e.id === establishmentId)

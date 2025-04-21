@@ -11,11 +11,6 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // You can add auth token here if needed
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
     return config;
   },
   (error) => {
@@ -29,11 +24,13 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response) {
-      console.error('Response error:', error.response.data);
-    } else if (error.request) {
-      console.error('Request error:', error.request);
-    } else {
-      console.error('Error:', error.message);
+      const status = error.response.status;
+      
+      if (status === 401 || status === 403) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   }

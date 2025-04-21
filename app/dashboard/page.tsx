@@ -1,16 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEstablishment } from "@/components/establishment-context";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
-import { useEstablishment } from "@/components/establishment-context";
-import { Order, OrderStatus } from "@/types/entities";
-import { orderService } from "@/lib/services/order-service";
-import { productService } from "@/lib/services/product-service";
-import { formatCurrency } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
+import { orderService } from "@/lib/services/order-service";
+import { formatCurrency } from "@/lib/utils";
+import { OrderStatus } from "@/types/entities";
+import { useEffect, useState } from 'react';
 
 type OrderStats = {
   totalOrders: number;
@@ -43,7 +41,6 @@ type PendingOrder = {
 };
 
 export default function DashboardPage() {
-  const { user } = useAuth();
   const { currentEstablishment } = useEstablishment();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<OrderStats>({

@@ -1,11 +1,14 @@
 import { Establishment } from '@/types/entities';
 import { mockEstablishments } from '../mocks/data';
-
+import axios from '../axios';
 class EstablishmentService {
-  async getEstablishments(): Promise<Establishment[]> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return mockEstablishments;
+  async getEstablishments(userId: string): Promise<Establishment[]> {
+    const response = await axios.get<Establishment[]>('/establishments', {
+      params: {
+        ownerId: userId
+      }
+    });
+    return response.data;
   }
 
   async getEstablishmentById(id: string): Promise<Establishment | null> {
