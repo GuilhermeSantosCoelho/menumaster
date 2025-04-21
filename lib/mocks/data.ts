@@ -1,47 +1,37 @@
 import { User, Establishment, Category, Product, Table, Order, OrderItem, TableStatus, OrderStatus, PaymentMethod } from '@/types/entities';
 
-// Mock Users
+// Create base objects first without circular references
 export const mockUsers: User[] = [
   {
     id: '1',
-    name: 'João Silva',
-    email: 'joao@example.com',
+    name: 'John Doe',
+    email: 'john@example.com',
     password: 'hashed_password',
-    phone: '11999999999',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-    establishments: [],
-    role: 'OWNER'
-  },
-  {
-    id: '2',
-    name: 'Maria Santos',
-    email: 'maria@example.com',
-    password: 'hashed_password',
-    phone: '11988888888',
-    createdAt: new Date('2024-01-02'),
-    updatedAt: new Date('2024-01-02'),
-    establishments: [],
-    role: 'MANAGER'
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    role: 'OWNER',
+    establishments: []
   }
 ];
 
-// Mock Establishments
 export const mockEstablishments: Establishment[] = [
   {
     id: '1',
-    name: 'Restaurante do João',
-    description: 'O melhor restaurante da cidade',
-    address: 'Rua das Flores, 123',
-    phone: '11977777777',
-    logo: 'https://example.com/logo1.png',
-    primaryColor: '#FF0000',
-    secondaryColor: '#00FF00',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
+    name: 'Restaurant Example',
+    description: undefined,
+    address: undefined,
+    phone: undefined,
+    logo: undefined,
+    primaryColor: '#000000',
+    secondaryColor: '#ffffff',
+    wifiSsid: undefined,
+    wifiPassword: undefined,
+    showWifiInMenu: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
     ownerId: '1',
     owner: mockUsers[0],
-    staff: [mockUsers[1]],
+    staff: [],
     products: [],
     categories: [],
     tables: [],
@@ -49,18 +39,58 @@ export const mockEstablishments: Establishment[] = [
     subscription: {
       id: '1',
       establishmentId: '1',
-      establishment: {} as Establishment,
-      startDate: new Date('2024-01-01'),
+      establishment: null as any,
+      startDate: new Date(),
+      endDate: undefined,
       active: true,
       autoRenew: true,
       paymentMethod: PaymentMethod.CREDIT_CARD,
+      paymentDetails: undefined,
       invoices: [],
-      createdAt: new Date('2024-01-01'),
-      updatedAt: new Date('2024-01-01')
+      createdAt: new Date(),
+      updatedAt: new Date(),
     },
     active: true
   }
 ];
+
+export const mockTables: Table[] = [
+  {
+    id: '1',
+    number: 1,
+    capacity: 4,
+    status: TableStatus.FREE,
+    sessionUuid: '',
+    establishmentId: '1',
+    establishment: mockEstablishments[0],
+    orders: [],
+    active: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
+
+export const mockOrders: Order[] = [
+  {
+    id: '1',
+    sessionUuid: '',
+    tableId: '1',
+    table: mockTables[0],
+    establishmentId: '1',
+    establishment: mockEstablishments[0],
+    status: OrderStatus.PENDING,
+    items: [],
+    totalAmount: 0,
+    paymentStatus: 'PENDING',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
+
+// Update references after all objects are created
+mockEstablishments[0].tables = mockTables;
+mockEstablishments[0].orders = mockOrders;
+mockUsers[0].establishments = mockEstablishments;
 
 // Mock Categories
 export const mockCategories: Category[] = [
@@ -124,38 +154,6 @@ export const mockProducts: Product[] = [
   }
 ];
 
-// Mock Tables
-export const mockTables: Table[] = [
-  {
-    id: '1',
-    number: 1,
-    capacity: 4,
-    status: TableStatus.FREE,
-    qrCodeUrl: 'https://example.com/qr-code-1.png',
-    sessionUuid: 'session-1',
-    establishmentId: '1',
-    establishment: mockEstablishments[0],
-    orders: [],
-    active: true,
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  },
-  {
-    id: '2',
-    number: 2,
-    capacity: 6,
-    status: TableStatus.OCCUPIED,
-    qrCodeUrl: 'https://example.com/qr-code-2.png',
-    sessionUuid: 'session-2',
-    establishmentId: '1',
-    establishment: mockEstablishments[0],
-    orders: [],
-    active: true,
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  }
-];
-
 // Mock OrderItems
 export const mockOrderItems: OrderItem[] = [
   {
@@ -184,41 +182,16 @@ export const mockOrderItems: OrderItem[] = [
   }
 ];
 
-// Mock Orders
-export const mockOrders: Order[] = [
-  {
-    id: '1',
-    sessionUuid: 'session-2',
-    table: mockTables[1],
-    establishmentId: '1',
-    establishment: mockEstablishments[0],
-    status: OrderStatus.PENDING,
-    items: mockOrderItems,
-    totalAmount: 37.00,
-    notes: 'Cliente com pressa',
-    customerName: 'Pedro Silva',
-    customerPhone: '11966666666',
-    paymentMethod: PaymentMethod.PIX,
-    paymentStatus: 'PENDING',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
-  }
-];
-
 // Update references
 mockOrderItems[0].order = mockOrders[0];
 mockOrderItems[1].order = mockOrders[0];
-mockTables[1].orders = [mockOrders[0]];
+mockTables[0].orders = [mockOrders[0]];
 mockProducts[0].orderItems = [mockOrderItems[0]];
 mockProducts[1].orderItems = [mockOrderItems[1]];
 mockCategories[0].products = [mockProducts[0]];
 mockCategories[1].products = [mockProducts[1]];
 mockEstablishments[0].products = mockProducts;
 mockEstablishments[0].categories = mockCategories;
-mockEstablishments[0].tables = mockTables;
-mockEstablishments[0].orders = mockOrders;
-mockUsers[0].establishments = [mockEstablishments[0]];
-mockUsers[1].establishments = [mockEstablishments[0]];
 
 export const mockInvoices = [
   {

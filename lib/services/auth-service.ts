@@ -1,5 +1,6 @@
 import { User, Establishment, PaymentMethod } from '@/types/entities';
 import { mockUsers, mockEstablishments } from '@/lib/mocks/data';
+import api from '@/lib/axios';
 
 export interface LoginCredentials {
   email: string;
@@ -15,33 +16,25 @@ class AuthService {
   private currentUser: User | null = null;
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const user = mockUsers.find(u => u.email === credentials.email);
-    
-    if (!user) {
+    try {
+      const response = await api.post<{ user: User }>('/auth', credentials);
+      this.currentUser = response.data.user;
+      return {
+        user: response.data.user,
+        error: null
+      };
+    } catch (error: any) {
+      if (error?.response?.data) {
+        return {
+          user: null,
+          error: error.message
+        };
+      }
       return {
         user: null,
-        error: 'Usuário não encontrado'
+        error: 'Ocorreu um erro ao fazer login'
       };
     }
-
-    console.log(user);
-
-    // In a real app, we would hash and compare passwords
-    if (credentials.password !== 'hashed_password') {
-      return {
-        user: null,
-        error: 'Senha incorreta'
-      };
-    }
-
-    this.currentUser = user;
-    return {
-      user,
-      error: null
-    };
   }
 
   async logout(): Promise<void> {
@@ -124,6 +117,7 @@ class AuthService {
       secondaryColor: '#f97316',
       wifiSsid: undefined,
       wifiPassword: undefined,
+      showWifiInMenu: false,
       ownerId: newUser.id,
       createdAt: new Date(),
       updatedAt: new Date(),

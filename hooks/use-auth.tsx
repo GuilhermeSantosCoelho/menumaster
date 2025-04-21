@@ -28,7 +28,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(user);
     } catch (error) {
       console.error('Error checking user:', error);
-      // Clear localStorage if there's an error
       localStorage.removeItem('currentUser');
     } finally {
       setLoading(false);
@@ -41,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw new Error(error);
       setUser(user);
     } catch (error) {
-      console.error('Error logging in:', error);
+      console.error('Erro ao fazer login:', error);
       throw error;
     }
   }
@@ -51,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authService.logout();
       setUser(null);
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error('Erro ao fazer logout:', error);
       throw error;
     }
   }

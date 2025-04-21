@@ -1,23 +1,14 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Utensils } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
 import { z } from 'zod';
+import { Utensils } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -27,18 +18,24 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'E-mail inválido' }),
   password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres' }),
 });
+
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirectedFrom') || '/dashboard';
-  const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loading } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,16 +46,17 @@ export default function LoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
     try {
       await login(values.email, values.password);
+
       toast.success('Login realizado com sucesso!');
-      router.push(redirectTo);
+      router.push('/dashboard');
     } catch (error) {
-      console.error(error);
-      toast.error('Ocorreu um erro ao fazer login.');
-    } finally {
-      setIsLoading(false);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Ocorreu um erro ao fazer login.');
+      }
     }
   }
 
@@ -72,9 +70,9 @@ export default function LoginPage() {
               <span className="text-xl font-bold">MenuMaster</span>
             </Link>
           </div>
-          <CardTitle className="text-2xl text-center">Entrar na sua conta</CardTitle>
+          <CardTitle className="text-2xl text-center">Entrar</CardTitle>
           <CardDescription className="text-center">
-            Digite seu e-mail e senha para acessar o painel
+            Entre com seu e-mail e senha
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -106,22 +104,17 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Entrando...' : 'Entrar'}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Entrando...' : 'Entrar'}
               </Button>
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-center text-sm">
-            <Link href="/reset-password" className="text-primary hover:underline">
-              Esqueceu sua senha?
-            </Link>
-          </div>
-          <div className="text-center text-sm">
+        <CardFooter>
+          <div className="text-center text-sm w-full">
             Não tem uma conta?{' '}
             <Link href="/register" className="text-primary hover:underline">
-              Cadastre-se
+              Cadastre-se aqui
             </Link>
           </div>
         </CardFooter>
