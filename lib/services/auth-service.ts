@@ -37,12 +37,6 @@ class AuthService {
     }
   }
 
-  async logout(): Promise<void> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    this.currentUser = null;
-  }
-
   async getCurrentUser(): Promise<User | null> {
     try {
       const response = await api.get<{ user: User }>('/auth/me');

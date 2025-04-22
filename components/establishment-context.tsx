@@ -37,8 +37,6 @@ export function EstablishmentProvider({ children }: { children: ReactNode }) {
         const userEstablishments = await establishmentService.getEstablishments(user.id)
         setEstablishments(userEstablishments)
 
-        console.log('userEstablishments', userEstablishments)
-
         // Se não houver estabelecimentos, redirecione para criar um
         if (userEstablishments.length === 0) {
           toast.error("Você não possui nenhum estabelecimento. Crie um para continuar.")

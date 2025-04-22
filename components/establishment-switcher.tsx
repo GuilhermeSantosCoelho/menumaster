@@ -19,7 +19,7 @@ import { useEstablishment } from "./establishment-context"
 export function EstablishmentSwitcher() {
   const [open, setOpen] = useState(false)
   const router = useRouter()
-  const { establishments, currentEstablishment, changeEstablishment } = useEstablishment()
+  const { establishments, currentEstablishment, changeEstablishment } = useEstablishment();
 
   if (!currentEstablishment) {
     return null

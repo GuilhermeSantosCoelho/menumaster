@@ -3,12 +3,14 @@ import { mockEstablishments } from '../mocks/data';
 import axios from '../axios';
 class EstablishmentService {
   async getEstablishments(userId: string): Promise<Establishment[]> {
-    const response = await axios.get<Establishment[]>('/establishments', {
-      params: {
-        ownerId: userId
-      }
+    const response = await axios.get<{ establishments: Establishment[] }>(
+      '/establishments',
+      {
+        params: {
+          ownerId: userId,
+        },
     });
-    return response.data;
+    return response.data.establishments;
   }
 
   async getEstablishmentById(id: string): Promise<Establishment | null> {

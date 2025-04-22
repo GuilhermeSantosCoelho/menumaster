@@ -1,13 +1,16 @@
 import { Category } from '@/types/entities';
 import { mockCategories } from '@/lib/mocks/data';
-
+import api from '../axios';
 class CategoryService {
   private categories = [...mockCategories];
 
   async getCategories(establishmentId: string): Promise<Category[]> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return this.categories.filter(category => category.establishment.id === establishmentId);
+    try {
+      const response = await api.get<{ categories: Category[] }>(`/categories?establishmentId=${establishmentId}`);
+      return response.data.categories;
+    } catch (error) {
+      throw new Error('Erro ao buscar categorias');
+    }
   }
 
   async createCategory(category: {
@@ -15,54 +18,29 @@ class CategoryService {
     description: string;
     establishmentId: string;
   }): Promise<Category> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const newCategory: Category = {
-      id: Math.random().toString(36).substring(7),
-      name: category.name,
-      description: category.description,
-      establishmentId: category.establishmentId,
-      establishment: { id: category.establishmentId } as any,
-      products: [],
-      active: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    this.categories.push(newCategory);
-    return newCategory;
+    try {
+      const response = await api.post<{ category: Category }>('/categories', category);
+      return response.data.category;
+    } catch (error) {
+      throw new Error('Erro ao criar categoria');
+    }
   }
 
   async updateCategory(id: string, category: Partial<Category>): Promise<Category> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const index = this.categories.findIndex(c => c.id === id);
-    if (index === -1) {
-      throw new Error('Category not found');
+    try {
+      const response = await api.put<{ category: Category }>(`/categories/${id}`, category);
+      return response.data.category;
+    } catch (error) {
+      throw new Error('Erro ao atualizar categoria');
     }
-
-    const updatedCategory = {
-      ...this.categories[index],
-      ...category,
-      updatedAt: new Date(),
-    };
-
-    this.categories[index] = updatedCategory;
-    return updatedCategory;
   }
 
   async deleteCategory(id: string): Promise<void> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const index = this.categories.findIndex(c => c.id === id);
-    if (index === -1) {
-      throw new Error('Category not found');
+    try {
+      await api.delete(`/categories/${id}`);
+    } catch (error) {
+      throw new Error('Erro ao deletar categoria');
     }
-
-    this.categories.splice(index, 1);
   }
 }
 
