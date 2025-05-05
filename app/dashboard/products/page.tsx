@@ -1,12 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useEstablishment } from "@/components/establishment-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -24,49 +42,38 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Info, Pencil, Trash2 } from "lucide-react";
-import { toast } from "sonner";
-import { Product, Category } from "@/types/entities";
-import { productService } from "@/lib/services/product-service";
+import { Textarea } from "@/components/ui/textarea";
 import { categoryService } from "@/lib/services/category-service";
+import { productService } from "@/lib/services/product-service";
 import {
-  productFormSchema,
   ProductFormData,
+  productFormSchema,
 } from "@/lib/validations/product-schema";
-import { useForm } from "react-hook-form";
+import { Category, Product } from "@/types/entities";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Info, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 export default function ProductsPage() {
   const { currentEstablishment } = useEstablishment();
-  const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [isEditingProduct, setIsEditingProduct] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const {
+    data: products,
+    isLoading: isLoadingProducts,
+    refetch,
+  } = useQuery({
+    queryKey: ["products", currentEstablishment?.id],
+    queryFn: () => productService.getProducts(currentEstablishment!.id),
+  });
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
@@ -101,24 +108,20 @@ export default function ProductsPage() {
 
   const loadData = async () => {
     try {
-      setLoading(true);
-      const [productsData, categoriesData] = await Promise.all([
-        productService.getProducts(currentEstablishment!.id),
+      const [categoriesData] = await Promise.all([
         categoryService.getCategories(currentEstablishment!.id),
       ]);
-      setProducts(productsData);
       setCategories(categoriesData);
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Erro ao carregar dados");
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleAddProduct = async (data: ProductFormData) => {
-    try {
-      const newProduct = await productService.createProduct({
+  const { mutate: createProduct } = useMutation({
+    mutationKey: ["createProduct"],
+    mutationFn: (data: ProductFormData) =>
+      productService.createProduct({
         name: data.name,
         description: data.description,
         price: parseFloat(data.price),
@@ -126,77 +129,66 @@ export default function ProductsPage() {
         available: data.available,
         establishmentId: currentEstablishment!.id,
         stock: data.hasNoStock ? -1 : parseInt(data.stock) || 0,
-      });
-      setProducts([...products, newProduct]);
+      }),
+    onSuccess: () => {
+      refetch();
       setIsAddingProduct(false);
       resetForm();
       toast.success("Produto adicionado com sucesso");
-    } catch (error) {
-      console.error("Error adding product:", error);
+    },
+    onError: () => {
       toast.error("Erro ao adicionar produto");
-    }
-  };
+    },
+  });
 
-  const handleEditProduct = async (data: ProductFormData) => {
-    if (!currentProduct) return;
-
-    try {
-      const updatedProduct = await productService.updateProduct(
-        currentProduct.id,
-        {
-          name: data.name,
-          description: data.description,
-          price: parseFloat(data.price),
-          categoryId: data.categoryId,
-          available: data.available,
-          stock: data.hasNoStock ? -1 : parseInt(data.stock) || 0,
-        }
-      );
-      setProducts(
-        products.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
-      );
+  const { mutate: updateProduct } = useMutation({
+    mutationKey: ["updateProduct"],
+    mutationFn: (data: ProductFormData) =>
+      productService.updateProduct(currentProduct!.id, {
+        name: data.name,
+        description: data.description,
+        price: parseFloat(data.price),
+        categoryId: data.categoryId,
+        available: data.available,
+        stock: data.hasNoStock ? -1 : parseInt(data.stock) || 0,
+      }),
+    onSuccess: () => {
+      refetch();
       setIsEditingProduct(false);
       setCurrentProduct(null);
       resetForm();
       toast.success("Produto atualizado com sucesso");
-    } catch (error) {
-      console.error("Error updating product:", error);
+    },
+    onError: () => {
       toast.error("Erro ao atualizar produto");
-    }
-  };
+    },
+  });
 
-  const handleDeleteProduct = async (id: string) => {
-    try {
-      setIsDeleting(true);
-      await productService.deleteProduct(id);
-      setProducts(products.filter((p) => p.id !== id));
+  const { mutate: deleteProduct } = useMutation({
+    mutationKey: ["deleteProduct"],
+    mutationFn: (id: string) => productService.deleteProduct(id),
+    onSuccess: () => {
+      refetch();
       setProductToDelete(null);
       toast.success("Produto excluído com sucesso");
-    } catch (error) {
-      console.error("Error deleting product:", error);
+    },
+    onError: () => {
       toast.error("Erro ao excluir produto");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+    },
+  });
 
-  const handleToggleAvailability = async (id: string, available: boolean) => {
-    try {
-      const updatedProduct = await productService.toggleAvailability(
-        id,
-        available
-      );
-      setProducts(
-        products.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
-      );
-      toast.success(
-        `Produto ${available ? "ativado" : "desativado"} com sucesso`
-      );
-    } catch (error) {
-      console.error("Error toggling product availability:", error);
+  const { mutate: toggleAvailability } = useMutation({
+    mutationKey: ["toggleAvailability"],
+    mutationFn: ({ id, available }: { id: string; available: boolean }) =>
+      productService.toggleAvailability(id, available),
+    onSuccess: () => {
+      refetch();
+      toast.success(`Produto alterado com sucesso`);
+    },
+    onError: () => {
       toast.error("Erro ao alterar disponibilidade do produto");
-    }
-  };
+    },
+  });
 
   const openEditForm = (product: Product) => {
     setCurrentProduct(product);
@@ -212,7 +204,7 @@ export default function ProductsPage() {
     setIsEditingProduct(true);
   };
 
-  if (loading) {
+  if (isLoadingProducts) {
     return <div>Carregando...</div>;
   }
 
@@ -264,7 +256,7 @@ export default function ProductsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => (
+                  {products?.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell>{product.name}</TableCell>
                       <TableCell>{product.description}</TableCell>
@@ -284,7 +276,10 @@ export default function ProductsPage() {
                         <Switch
                           checked={product.available}
                           onCheckedChange={(checked) =>
-                            handleToggleAvailability(product.id, checked)
+                            toggleAvailability({
+                              id: product.id,
+                              available: checked,
+                            })
                           }
                         />
                       </TableCell>
@@ -326,7 +321,7 @@ export default function ProductsPage() {
                   </TableHeader>
                   <TableBody>
                     {products
-                      .filter((product) => product.categoryId === category.id)
+                      ?.filter((product) => product.categoryId === category.id)
                       .map((product) => (
                         <TableRow key={product.id}>
                           <TableCell>{product.name}</TableCell>
@@ -336,7 +331,10 @@ export default function ProductsPage() {
                             <Switch
                               checked={product.available}
                               onCheckedChange={(checked) =>
-                                handleToggleAvailability(product.id, checked)
+                                toggleAvailability({
+                                  id: product.id,
+                                  available: checked,
+                                })
                               }
                             />
                           </TableCell>
@@ -379,9 +377,18 @@ export default function ProductsPage() {
             <CardContent>
               <Form {...form}>
                 <form
-                  onSubmit={form.handleSubmit(
-                    isAddingProduct ? handleAddProduct : handleEditProduct
-                  )}
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const isValid = await form.trigger();
+                    if (isValid) {
+                      const data = form.getValues();
+                      if (isAddingProduct) {
+                        await createProduct(data);
+                      } else {
+                        await updateProduct(data);
+                      }
+                    }
+                  }}
                   className="space-y-4"
                 >
                   <FormField
@@ -427,7 +434,9 @@ export default function ProductsPage() {
                     control={form.control}
                     name="stock"
                     render={({ field }) => (
-                      <FormItem className={form.watch("hasNoStock") ? "hidden" : ""}>
+                      <FormItem
+                        className={form.watch("hasNoStock") ? "hidden" : ""}
+                      >
                         <FormLabel>Estoque</FormLabel>
                         <FormControl>
                           <Input type="number" {...field} />
@@ -493,6 +502,7 @@ export default function ProductsPage() {
                   />
                   <div className="flex justify-end gap-2">
                     <Button
+                      type="button"
                       variant="outline"
                       onClick={() => {
                         setIsAddingProduct(false);
@@ -503,8 +513,18 @@ export default function ProductsPage() {
                     >
                       Cancelar
                     </Button>
-                    <Button type="submit">
-                      {isAddingProduct ? "Adicionar" : "Salvar"}
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        const data = form.getValues();
+                        if (isAddingProduct) {
+                          createProduct(data);
+                        } else {
+                          updateProduct(data);
+                        }
+                      }}
+                    >
+                      Salvar
                     </Button>
                   </div>
                 </form>
@@ -541,7 +561,7 @@ export default function ProductsPage() {
             <Button
               variant="destructive"
               onClick={() =>
-                productToDelete && handleDeleteProduct(productToDelete.id)
+                productToDelete && deleteProduct(productToDelete.id)
               }
               disabled={isDeleting}
             >

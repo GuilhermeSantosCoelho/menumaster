@@ -1,21 +1,25 @@
 import { Product } from "@/types/entities"
-import { mockProducts } from "@/lib/mocks/data"
+import api from "@/lib/axios"
 
 class ProductService {
-  private products: Product[] = mockProducts
-
   async getProducts(establishmentId: string): Promise<Product[]> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-    return this.products.filter(p => p.establishment.id === establishmentId)
+    try {
+      const response = await api.get<{ products: Product[] }>(`/products`, {
+        params: { establishmentId }
+      })
+      return response.data.products
+    } catch (error) {
+      throw new Error("Erro ao buscar produtos")
+    }
   }
 
   async getProductById(id: string): Promise<Product> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-    const product = this.products.find(p => p.id === id)
-    if (!product) throw new Error("Product not found")
-    return product
+    try {
+      const response = await api.get<{ product: Product }>(`/products/${id}`)
+      return response.data.product
+    } catch (error) {
+      throw new Error("Produto não encontrado")
+    }
   }
 
   async createProduct(data: {
@@ -27,26 +31,12 @@ class ProductService {
     establishmentId: string
     stock?: number
   }): Promise<Product> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    const newProduct: Product = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: data.name,
-      description: data.description,
-      price: data.price,
-      categoryId: data.categoryId,
-      available: data.available,
-      establishmentId: data.establishmentId,
-      establishment: { id: data.establishmentId } as any,
-      orderItems: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      stock: data.stock,
+    try {
+      const response = await api.post<{ product: Product }>('/products', data)
+      return response.data.product
+    } catch (error) {
+      throw new Error("Erro ao criar produto")
     }
-
-    this.products.push(newProduct)
-    return newProduct
   }
 
   async updateProduct(id: string, data: {
@@ -57,43 +47,29 @@ class ProductService {
     available: boolean
     stock?: number
   }): Promise<Product> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    const index = this.products.findIndex(p => p.id === id)
-    if (index === -1) throw new Error("Product not found")
-
-    const updatedProduct = {
-      ...this.products[index],
-      ...data,
-      updatedAt: new Date(),
+    try {
+      const response = await api.put<{ product: Product }>(`/products/${id}`, data)
+      return response.data.product
+    } catch (error) {
+      throw new Error("Erro ao atualizar produto")
     }
-
-    this.products[index] = updatedProduct
-    return updatedProduct
   }
 
   async deleteProduct(id: string): Promise<void> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-    this.products = this.products.filter(p => p.id !== id)
+    try {
+      await api.delete(`/products/${id}`)
+    } catch (error) {
+      throw new Error("Erro ao deletar produto")
+    }
   }
 
   async toggleAvailability(id: string, available: boolean): Promise<Product> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    const index = this.products.findIndex(p => p.id === id)
-    if (index === -1) throw new Error("Product not found")
-
-    const updatedProduct = {
-      ...this.products[index],
-      available,
-      updatedAt: new Date(),
+    try {
+      const response = await api.patch<{ product: Product }>(`/products/${id}/availability`, { available })
+      return response.data.product
+    } catch (error) {
+      throw new Error("Erro ao alternar disponibilidade do produto")
     }
-
-    this.products[index] = updatedProduct
-    return updatedProduct
   }
 }
 

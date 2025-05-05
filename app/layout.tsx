@@ -1,17 +1,17 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import { AuthProvider } from "@/hooks/use-auth"
-import { Toaster } from 'sonner'
+import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/hooks/use-auth";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import type React from "react";
+import { Toaster } from "sonner";
+import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "MenuMaster",
   description: "Gerencie seu estabelecimento com facilidade",
-}
+};
 
 export default function RootLayout({
   children,
@@ -22,14 +22,10 @@ export default function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider defaultTheme="light">
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
         <Toaster richColors position="top-right" />
       </body>
     </html>
-  )
+  );
 }
-
-import './globals.css'
