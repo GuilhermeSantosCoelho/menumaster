@@ -1,138 +1,108 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { useEstablishment } from "@/components/establishment-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
-import { Category } from "@/types/entities";
+import { useToast } from "@/components/ui/use-toast";
 import { categoryService } from "@/lib/services/category-service";
-import { useEstablishment } from "@/components/establishment-context";
+import { Category } from "@/types/entities";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 export default function CategoriesPage() {
   const { toast } = useToast();
   const { currentEstablishment } = useEstablishment();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [currentCategory, setCurrentCategory] =
     useState<Partial<Category> | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
     null
   );
-  useEffect(() => {
-    if (currentEstablishment) {
-      loadCategories();
+
+  const {
+    data: categories,
+    isLoading: isLoadingCategories,
+    refetch,
+  } = useQuery({
+    queryKey: ["getCategories", currentEstablishment?.id],
+    queryFn: () => categoryService.getCategories(currentEstablishment!.id),
+  });
+
+  const { mutate: createCategory, isPending: isCreatingCategory } = useMutation(
+    {
+      mutationFn: (category: Category) =>
+        categoryService.createCategory({
+          name: category.name!,
+          description: category.description || "",
+          establishmentId: currentEstablishment!.id,
+        }),
+      onSuccess: () => {
+        refetch();
+        setCurrentCategory(null);
+        toast({
+          title: "Categoria criada",
+          description: "A categoria foi criada com sucesso.",
+        });
+      },
+      onError: () => {
+        toast({
+          title: "Erro ao criar categoria",
+          description: "Não foi possível criar a categoria. Tente novamente.",
+          variant: "destructive",
+        });
+      },
     }
-  }, [currentEstablishment]);
+  );
 
-  const loadCategories = async () => {
-    try {
-      setLoading(true);
-      const data = await categoryService.getCategories(
-        currentEstablishment!.id
-      );
-      setCategories(data);
-    } catch (error) {
-      toast({
-        title: "Erro ao carregar categorias",
-        description:
-          "Não foi possível carregar as categorias. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddCategory = async () => {
-    if (!currentCategory?.name!.trim()) {
-      toast({
-        title: "Nome obrigatório",
-        description: "O nome da categoria é obrigatório.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsAddingCategory(true);
-      await categoryService.createCategory({
-        name: currentCategory.name!,
-        description: currentCategory.description || "",
-        establishmentId: currentEstablishment!.id,
-      });
-
-      setCurrentCategory(null);
-      await loadCategories();
-
-      toast({
-        title: "Categoria criada",
-        description: "A categoria foi criada com sucesso.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro ao criar categoria",
-        description: "Não foi possível criar a categoria. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsAddingCategory(false);
-    }
-  };
-
-  const handleEditCategory = async (category: Category) => {
-    try {
-      await categoryService.updateCategory(category.id, category);
-      await loadCategories();
-
+  const { mutate: updateCategory, isPending: isUpdating } = useMutation({
+    mutationFn: (category: Category) =>
+      categoryService.updateCategory(category.id, category),
+    onSuccess: () => {
+      refetch();
       toast({
         title: "Categoria atualizada",
         description: "A categoria foi atualizada com sucesso.",
       });
-    } catch (error) {
+      setCurrentCategory(null);
+    },
+    onError: () => {
       toast({
         title: "Erro ao atualizar categoria",
         description: "Não foi possível atualizar a categoria. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
-      setCurrentCategory(null);
-    }
-  };
+    },
+  });
 
-  const handleDeleteCategory = async (id: string) => {
-    try {
-      setLoading(true);
-      await categoryService.deleteCategory(id);
-      await loadCategories();
+  const { mutate: deleteCategory, isPending: isDeleting } = useMutation({
+    mutationFn: (id: string) => categoryService.deleteCategory(id),
+    onSuccess: () => {
+      refetch();
       setCategoryToDelete(null);
-
       toast({
         title: "Categoria excluída",
         description: "A categoria foi excluída com sucesso.",
       });
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         title: "Erro ao excluir categoria",
         description: "Não foi possível excluir a categoria. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -190,20 +160,22 @@ export default function CategoriesPage() {
               <Button
                 onClick={() => {
                   if (currentCategory?.id) {
-                    handleEditCategory(currentCategory as Category);
+                    updateCategory(currentCategory as Category);
                   } else {
-                    handleAddCategory();
+                    createCategory(currentCategory as Category);
                   }
                 }}
                 disabled={
-                  isAddingCategory || currentCategory?.name!.trim() === ""
+                  isCreatingCategory ||
+                  isUpdating ||
+                  currentCategory?.name!.trim() === ""
                 }
                 className="w-full"
               >
-                {isAddingCategory ? (
+                {isCreatingCategory || isUpdating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isAddingCategory ? "Criando..." : "Atualizando..."}
+                    {isCreatingCategory ? "Criando..." : "Atualizando..."}
                   </>
                 ) : currentCategory?.id ? (
                   "Atualizar Categoria"
@@ -221,17 +193,17 @@ export default function CategoriesPage() {
           <CardTitle>Lista de Categorias</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoadingCategories ? (
             <div className="flex justify-center items-center h-32">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : categories.length === 0 ? (
+          ) : categories?.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               Nenhuma categoria encontrada
             </div>
           ) : (
             <div className="grid gap-4">
-              {categories.map((category) => (
+              {categories?.map((category) => (
                 <Card key={category.id}>
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start">
@@ -291,9 +263,9 @@ export default function CategoriesPage() {
             <Button
               variant="destructive"
               onClick={() =>
-                categoryToDelete && handleDeleteCategory(categoryToDelete.id)
+                categoryToDelete && deleteCategory(categoryToDelete.id)
               }
-              disabled={loading}
+              disabled={isDeleting}
             >
               Excluir
             </Button>
