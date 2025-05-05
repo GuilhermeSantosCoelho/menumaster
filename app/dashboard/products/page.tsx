@@ -49,17 +49,16 @@ import {
   ProductFormData,
   productFormSchema,
 } from "@/lib/validations/product-schema";
-import { Category, Product } from "@/types/entities";
+import { Product } from "@/types/entities";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Info, Pencil, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useQuery, useMutation } from "@tanstack/react-query";
 
 export default function ProductsPage() {
   const { currentEstablishment } = useEstablishment();
-  const [categories, setCategories] = useState<Category[]>([]);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [isEditingProduct, setIsEditingProduct] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
@@ -100,23 +99,11 @@ export default function ProductsPage() {
     });
   };
 
-  useEffect(() => {
-    if (currentEstablishment) {
-      loadData();
-    }
-  }, [currentEstablishment]);
 
-  const loadData = async () => {
-    try {
-      const [categoriesData] = await Promise.all([
-        categoryService.getCategories(currentEstablishment!.id),
-      ]);
-      setCategories(categoriesData);
-    } catch (error) {
-      console.error("Error loading data:", error);
-      toast.error("Erro ao carregar dados");
-    }
-  };
+  const { data: categories, isLoading: isLoadingCategories } = useQuery({
+    queryKey: ["categories", currentEstablishment?.id],
+    queryFn: () => categoryService.getCategories(currentEstablishment!.id),
+  });
 
   const { mutate: createProduct } = useMutation({
     mutationKey: ["createProduct"],
@@ -204,7 +191,7 @@ export default function ProductsPage() {
     setIsEditingProduct(true);
   };
 
-  if (isLoadingProducts) {
+  if (isLoadingProducts || isLoadingCategories) {
     return <div>Carregando...</div>;
   }
 
@@ -235,7 +222,7 @@ export default function ProductsPage() {
           <Tabs defaultValue="all" className="w-full">
             <TabsList className="mb-4">
               <TabsTrigger value="all">Todas</TabsTrigger>
-              {categories.map((category) => (
+              {categories?.map((category) => (
                 <TabsTrigger key={category.id} value={category.id}>
                   {category.name}
                 </TabsTrigger>
@@ -263,7 +250,7 @@ export default function ProductsPage() {
                       <TableCell>R$ {product.price.toFixed(2)}</TableCell>
                       <TableCell>
                         {
-                          categories.find((c) => c.id === product.categoryId)
+                          categories?.find((c) => c.id === product.categoryId)
                             ?.name
                         }
                       </TableCell>
@@ -307,7 +294,7 @@ export default function ProductsPage() {
               </Table>
             </TabsContent>
 
-            {categories.map((category) => (
+            {categories?.map((category) => (
               <TabsContent key={category.id} value={category.id}>
                 <Table>
                   <TableHeader>
@@ -489,7 +476,7 @@ export default function ProductsPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {categories.map((category) => (
+                            {categories?.map((category) => (
                               <SelectItem key={category.id} value={category.id}>
                                 {category.name}
                               </SelectItem>
